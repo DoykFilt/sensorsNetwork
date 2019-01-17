@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1095</width>
+    <height>656</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>1095</width>
+    <height>656</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>1095</width>
+    <height>656</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="FPD_widget_principal">
+   <property name="minimumSize">
+    <size>
+     <width>1095</width>
+     <height>615</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>1095</width>
+     <height>615</height>
+    </size>
+   </property>
+   <widget class="QWidget" name="horizontalLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>10</y>
+      <width>1071</width>
+      <height>591</height>
+     </rect>
+    </property>
+    <layout class="QHBoxLayout" name="FPD_layout_principale">
+     <item>
+      <layout class="QVBoxLayout" name="FPD_layout_gauche">
+       <item>
+        <layout class="QVBoxLayout" name="FPD_layout_gauche_haut"/>
+       </item>
+       <item>
+        <widget class="QSlider" name="FPD_barre_temporelle">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="FPD_layout_gauche_bas">
+         <item>
+          <widget class="QPushButton" name="FPD_bouton_generer_reseau">
+           <property name="text">
+            <string>Générer un réseau</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="FPD_bouton_lancer_simulation">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>Lancer la simulation</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="FPD_layout_droit">
+       <item>
+        <widget class="QGraphicsView" name="FPD_graphique_vie">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="FPD_legende_graphique_capteurs">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Durée de vie du réseau en fonction de l'intervalle de temps utilisé</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGraphicsView" name="FPD_graphique_capteurs">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="FPD_legende_graphique_vie">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Nombre de capteurs en fin de vie en fonction du temps</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QTextBrowser" name="FPD_log">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="FPD_barre_menu">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1095</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="FPD_menu_reseau">
+    <property name="title">
+     <string>Réseau</string>
+    </property>
+    <widget class="QMenu" name="FPD_menu_exporter">
+     <property name="title">
+      <string>Exporter ..</string>
+     </property>
+     <addaction name="action_le_r_seau_HTML"/>
+     <addaction name="FPDActionExporterReseau"/>
+     <addaction name="FDPActionExporterSimulation"/>
+    </widget>
+    <widget class="QMenu" name="FPD_menu_charger">
+     <property name="title">
+      <string>Charger depuis ..</string>
+     </property>
+     <addaction name="FPDChargerHTML"/>
+     <addaction name="FPDChargerXML"/>
+    </widget>
+    <addaction name="FPD_menu_exporter"/>
+    <addaction name="separator"/>
+    <addaction name="FPD_menu_charger"/>
+   </widget>
+   <addaction name="FPD_menu_reseau"/>
+  </widget>
+  <widget class="QStatusBar" name="FPD_barre_status"/>
+  <action name="FPDActionSauvegarder">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Sauvegarder</string>
+   </property>
+  </action>
+  <action name="FPDActionExporterReseau">
+   <property name="text">
+    <string>.. le réseau (.XML)</string>
+   </property>
+  </action>
+  <action name="FDPActionExporterSimulation">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>.. le résultat de la simulation (.XML)</string>
+   </property>
+  </action>
+  <action name="FPDChargerHTML">
+   <property name="text">
+    <string>.. un fichier .HTML</string>
+   </property>
+  </action>
+  <action name="FPDChargerXML">
+   <property name="text">
+    <string>.. un fichier .XML</string>
+   </property>
+  </action>
+  <action name="action_le_r_seau_HTML">
+   <property name="text">
+    <string>.. le réseau (.HTML)</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

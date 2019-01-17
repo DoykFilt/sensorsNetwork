@@ -1,14 +1,44 @@
+import os
+
+import PyQt5
+import sys
+from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtCore import QUrl
 
 import plotly.graph_objs as go
 import plotly
 
 import networkx as nx
 
-# TODO : Afficher le résultat dans une fenêtre Tkinter
+# TODO : Afficher le résultat dans une fenêtre
+from Vue import fenetreprincipaledesign_ui
 
-class FenetrePrincipale:
 
-    def FPafficherReseau(self, _reseau, _name):
+class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_MainWindow):
+
+    def __init__(self):
+
+        QtWidgets.QMainWindow.__init__(self)
+        fenetreprincipaledesign_ui.Ui_MainWindow.__init__(self)
+        self.setupUi(self)
+
+        self._view = QWebEngineView()
+
+        # Signaux
+        # self.FPD_bouton_generer_reseau.coonect(self.FPDActiongenerer)
+
+    def lancer(self):
+
+        file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../donnees/reseau/reseau_000.html"))
+        local_url = QUrl.fromLocalFile(file_path)
+
+        self._view.load(local_url)
+
+        self.FPD_layout_gauche_haut.addWidget(self._view)
+
+    def FPafficherReseau(self, _reseau, _path, _name):
 
         _pos = nx.get_node_attributes(_reseau.R_graphe, 'pos')
 
@@ -87,4 +117,12 @@ class FenetrePrincipale:
                             xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                             yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
 
-        plotly.offline.plot(fig, filename=_name + '.html')
+        html = plotly.offline.plot(fig, auto_open=False, output_type='div')
+        html = """<html><head><meta charset="utf-8" /></head><body><script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script>""" + \
+                html + """<script type="text/javascript">window.addEventListener("resize", function(){Plotly.Plots.resize(document.getElementById("611e9c72-ed73-4e6f-b171-1737e84f4735"));});</script></body></html>"""
+
+        _path = os.path.abspath(os.path.join(os.path.dirname(__file__), _path))
+        if not os.path.exists(_path):
+            os.makedirs(_path)
+        with open(_path + "\\" + _name + ".html", 'w+') as f:
+            f.write(html)

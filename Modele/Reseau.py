@@ -1,7 +1,6 @@
 import networkx as nx
 import math
 import random
-from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 
 # TODO : Ajouter la notion d'énergie et de puit
