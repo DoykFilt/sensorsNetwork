@@ -157,16 +157,15 @@
      <property name="title">
       <string>Exporter ..</string>
      </property>
-     <addaction name="action_le_r_seau_HTML"/>
      <addaction name="FPDActionExporterReseau"/>
      <addaction name="FDPActionExporterSimulation"/>
     </widget>
     <widget class="QMenu" name="FPD_menu_charger">
      <property name="title">
-      <string>Charger depuis ..</string>
+      <string>Charger ..</string>
      </property>
-     <addaction name="FPDChargerHTML"/>
-     <addaction name="FPDChargerXML"/>
+     <addaction name="FPDActionChargerReseau"/>
+     <addaction name="FPDActionChargerResultats"/>
     </widget>
     <addaction name="FPD_menu_exporter"/>
     <addaction name="separator"/>
@@ -196,14 +195,17 @@
     <string>.. le résultat de la simulation (.XML)</string>
    </property>
   </action>
-  <action name="FPDChargerHTML">
+  <action name="FPDActionChargerReseau">
    <property name="text">
-    <string>.. un fichier .HTML</string>
+    <string>.. un réseau .XML</string>
    </property>
   </action>
-  <action name="FPDChargerXML">
+  <action name="FPDActionChargerResultats">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
-    <string>.. un fichier .XML</string>
+    <string>.. un résultat de simulation</string>
    </property>
   </action>
   <action name="action_le_r_seau_HTML">
