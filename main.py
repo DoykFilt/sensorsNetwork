@@ -4,9 +4,7 @@ import sys
 
 import matplotlib.pyplot as plt
 
-from Controleur.ReseauControleur import ReseauControleur
 from Modele.Reseau import Reseau
-from Vue.FenetreCreation import FenetreCreation
 from Vue.FenetrePrincipale import FenetrePrincipale
 from PyQt5.QtWidgets import QApplication
 
@@ -23,15 +21,23 @@ def main():
         sys._excepthook(exctype, value, traceback)
         sys.exit(1)
 
+
     sys.excepthook = exception_hook
     app = QApplication(sys.argv)
 
-    _fenetre_principale = FenetrePrincipale()
-    _fenetre_principale.setWindowTitle("Simulateur de la consommation énergétique de réseaux de capteurs sans fils")
-    _fenetre_creation = FenetreCreation()
-    _reseau_controleur = ReseauControleur(_fenetre_principale, _fenetre_creation)
+    _max_size = 25
+    _marge = 1
+    _nbr_capteurs = 50
+    _max_distance = 5
+    _min_distance = 1
 
-    _fenetre_principale.show()
+    FPFenetrePrincipale = FenetrePrincipale()
+    reseau = Reseau(_nbr_capteurs, _max_size, _marge, _max_distance, _min_distance)
+
+    print("Calcul de l'affichage..")
+    FPFenetrePrincipale.FPafficherReseau(reseau, "..\\donnees\\reseau", "reseau_000")
+    FPFenetrePrincipale.lancer()
+    FPFenetrePrincipale.show()
 
     """Retourne un exit status 
     (0 pour succes, tout le reste pour l'echec"""
