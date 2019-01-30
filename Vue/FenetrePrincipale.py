@@ -50,3 +50,4 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
 
     def FPactionExporterReseau(self):
         self.FP_connecteur.emit(Signaux._EXPORTER_XML)
+

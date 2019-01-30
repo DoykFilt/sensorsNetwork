@@ -184,4 +184,3 @@ class Ui_MainWindow(object):
         self.FCD_distance_min_max.setText(_translate("MainWindow", "TextLabel"))
         self.FCD_boutton_annuler.setText(_translate("MainWindow", "Annuler"))
         self.FCD_boutton_generer.setText(_translate("MainWindow", "Générer le réseau"))
-

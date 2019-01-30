@@ -10,3 +10,4 @@ class Parametres:
         self.P_nbr_capteurs = _nbr_capteurs
         self.P_capacitees_batteries = _capacitees_batteries
         self.P_nbr_puits = _nbr_puits
+

@@ -126,4 +126,3 @@ class Ui_MainWindow(object):
         self.FPDActionChargerReseau.setText(_translate("MainWindow", ".. un réseau .XML"))
         self.FPDActionChargerResultats.setText(_translate("MainWindow", ".. un résultat de simulation"))
         self.action_le_r_seau_HTML.setText(_translate("MainWindow", ".. le réseau (.HTML)"))
-

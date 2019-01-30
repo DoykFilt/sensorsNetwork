@@ -9,3 +9,4 @@ class Roles(Enum):
     _PUIT = 0
     _EMETTEUR = 1
     _EMETTEUR_RECEPTEUR = 2
+

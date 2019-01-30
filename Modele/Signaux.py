@@ -15,3 +15,4 @@ class Signaux(Enum):
 
     _ANNULER_PARAMETRES = 3
     _VALIDER_PARAMETRES = 3.1
+

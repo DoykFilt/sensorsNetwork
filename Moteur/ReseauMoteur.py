@@ -497,5 +497,3 @@ class ReseauMoteur:
                + html \
                + """<script type="text/javascript">window.addEventListener("resize", function(){Plotly.Plots.resize(docu
                     ment.getElementById("611e9c72-ed73-4e6f-b171-1737e84f4735"));});</script></body></html>"""
-
-

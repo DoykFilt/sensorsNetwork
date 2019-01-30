@@ -152,3 +152,4 @@ class FenetreCreation(QtWidgets.QMainWindow, fenetrecreationdesign_ui.Ui_MainWin
                           _capacitees_batteries=self.FCD_cap_batterie_barre_choix.value(),
                           _nbr_puits=1
                           )
+
