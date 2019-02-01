@@ -1,31 +1,28 @@
-import os
-import random
 import sys
-
-import matplotlib.pyplot as plt
-
-from Controleur.ReseauControleur import ReseauControleur
-from Modele.Reseau import Reseau
-from Vue.FenetreCreation import FenetreCreation
-from Vue.FenetrePrincipale import FenetrePrincipale
 from PyQt5.QtWidgets import QApplication
 
+from Controleur.ReseauControleur import ReseauControleur
+from Utilitaires.Log import Log
+from Vue.FenetreCreation import FenetreCreation
+from Vue.FenetrePrincipale import FenetrePrincipale
 
-# TODO : Tkinter : option charger ou sauvegarder un réseau + barre de chargement lors de la création
 
 def main():
 
+    _log = Log()
+    # Fonction pour la réception et l'affichage de toutes les erreurs
     sys._excepthook = sys.excepthook
 
-
     def exception_hook(exctype, value, traceback):
-        print(exctype, value, traceback)
+        _log.error(traceback)
         sys._excepthook(exctype, value, traceback)
         sys.exit(1)
 
     sys.excepthook = exception_hook
-    app = QApplication(sys.argv)
+    _app = QApplication(sys.argv)
 
+    _log.info("Démarrage de l'application")
+    # Les deux fenêtres à afficher et le controleur qui fait le lien entre les deux
     _fenetre_principale = FenetrePrincipale()
     _fenetre_principale.setWindowTitle("Simulateur de la consommation énergétique de réseaux de capteurs sans fils")
     _fenetre_creation = FenetreCreation()
@@ -36,7 +33,7 @@ def main():
     """Retourne un exit status 
     (0 pour succes, tout le reste pour l'echec"""
     try:
-        sys.exit(app.exec_())
+        sys.exit(_app.exec_())
     except:
         sys.exit(0)
 

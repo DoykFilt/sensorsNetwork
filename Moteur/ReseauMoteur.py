@@ -12,15 +12,35 @@ from Modele.Reseau import Reseau
 
 
 class ReseauMoteur:
+    """
+        class ReseauMoteur
+
+        Classe qui regroupe les outils utiles pour la génération d'un réseau
+        La plupart des méthodes sont déclarées statiques
+
+    """
 
     def __init__(self, _connecteur):
         super(ReseauMoteur, self).__init__()
         self.RM_connecteur = _connecteur
 
     def RMobtenirConnecteur(self):
+        """
+        Renvoie le connecteur, permet d'agir à l'extérieur de la classe aux émissions de l'intérieur
+
+        :return Le connecteur pyqtSignal
+        """
         return self.RM_connecteur
 
     def RMcreerReseau(self, _params):
+        """
+        Permet de généré un réseau qui respectent les prérequis de l'application
+
+        :param Objet Parametres
+
+        :return Objet Reseau
+
+        """
 
         self.RM_connecteur.emit(Signaux._INITIALISATION_CREATION_GRAPHE, 0,
                                 "Initialisation de la création du réseau..", -1)
@@ -28,14 +48,15 @@ class ReseauMoteur:
         _reseau = Reseau()
         _reseau.R_nbr_noeuds = _params.P_nbr_capteurs
 
+        # Génération des positions des capteurs
         self.RM_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 5, "Génération des positions initiales..", -1)
-        # Génération des positions puis du graphe
         _pos = ReseauMoteur.__RMgenererPositions(_params.P_nbr_capteurs,
-                                        _params.P_max_size,
-                                        _params.P_marge,
-                                        _params.P_min_distance)
+                                                 _params.P_max_size,
+                                                 _params.P_marge,
+                                                 _params.P_min_distance)
         self.RM_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 10, "Positions générées", -1)
 
+        # Création du graphe
         self.RM_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 10, "Génération de la topologie du réseau..", -1)
         _graphe = ReseauMoteur.__RMgenerationReseau(_params.P_nbr_capteurs, _pos, _params.P_max_distance)
         self.RM_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 15, "Topologie générée..", -1)
@@ -43,18 +64,30 @@ class ReseauMoteur:
         # Réagencement du graphe en un graphe connexe
         _reseau.R_graphe = ReseauMoteur.RMconnexeur(_graphe, _params.P_max_distance, self.RM_connecteur)
 
+        # Assignation des paramètres
         self.RM_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 100, "Mise en place des paramètres réseaux..", -1)
         _reseau.R_graphe = self.__RMparametrageReseau(_reseau.R_graphe, _params)
 
         self.RM_connecteur.emit(Signaux._FIN_CREATION_GRAPHE, 0, "Réseau généré !", 0)
+
         return _reseau
 
     @staticmethod
     def __RMparametrageReseau(_graphe, _params):
+        """
+        Permet de placer les paramètres de rôle et niveau de batterie dans les noeuds.
+        Le premier noeud correspond au puit
 
+        :param Objet Parametres, Graphe networkX
+
+        :return Graphe networkX
+
+        """
+
+        # Paramètre rôle : Puit, Emetteur/Recepteur, Emetteur
         _roles = {i: Roles._EMETTEUR_RECEPTEUR for i in range(0, _params.P_nbr_capteurs)}
         _roles[0] = Roles._PUIT
-
+        # Niveau initiale de batterie
         _batterie = {i: _params.P_capacitees_batteries for i in range(0, _params.P_nbr_capteurs)}
         _batterie[0] = -1
 
@@ -65,10 +98,11 @@ class ReseauMoteur:
 
     @staticmethod
     def __RMgenererPositions(_nbr_noeuds, _max_size, _marge, _min_distance):
-
         """
         Fonction qui génèe les positions des noeuds afin qu'ils soient mieux reparti
-        Elle découpe en aires rectangulaires les surfaces non occupées par les noeuds en prenant en compte la distance minimum
+        Elle découpe en aires rectangulaires les surfaces non occupées par les noeuds en prenant en compte la distance
+        minimum
+
         :param _max_size : la taille de la surface carrée à occuper
         :param _marge : la marge à respecter entre le bord de la surface et les noeuds
         :param _min_distance : la distance indicative à ne pas dépasser entre deux capteurs
@@ -76,6 +110,7 @@ class ReseauMoteur:
 
         :return un dictionnaire des positions des noeuds. exe : {1:(2.5, 3.0), 2:(5.6, 3.1)}
         """
+
         # L'ensemble d'aires où les noeuds peuvent être placer. Au début contient juste la surface maximale
         _aires_libres = [[(_marge, _marge), (_max_size - _marge, _max_size - _marge)]]
         _pos = {}
@@ -138,7 +173,6 @@ class ReseauMoteur:
 
     @staticmethod
     def __RMafficherPositions(_pos, _max_size, _min_distance):
-
         """
         Fonction permet de visualiser sur une fenêtre matplotlib la disposition d'un nuage de point avec un cercle par
         point qui correspond à la distance minimum que doivent avoir les noeuds entre eux
@@ -146,6 +180,7 @@ class ReseauMoteur:
         :param _max_size : la taille de la surface carrée à occuper
         :param _min_distance : la distance indicative à ne pas dépasser entre deux capteurs
         """
+
         _list_x, _list_y = [], []
         _list = []
         ax = plt.gca(aspect='equal')
@@ -165,7 +200,7 @@ class ReseauMoteur:
     @staticmethod
     def RMconnexeur(_graphe, _max_distance, _connecteur=None):
         """
-            Connecte entre eux les sous-graphes sur multi-graphe passé en paramètre afin d'en créer un unique
+        Connecte entre eux les sous-graphes sur multi-graphe passé en paramètre afin d'en créer un unique
 
         :param _graphe : le graphe networkX à traiter
         :param _max_distance : la distance pour que deux capteurs soient connectés
@@ -200,7 +235,6 @@ class ReseauMoteur:
         _timer_stop = datetime.datetime.now()
         _temps = 0
         _estimation = -1
-
 
         # Boucle tant qu'il n'y a encore des sous-graphes
         while _count > 1:
@@ -375,7 +409,15 @@ class ReseauMoteur:
 
     @staticmethod
     def RMcreerReseauAvecCapteursEtArcs(_capteurs, _arcs):
-        _pos = {}
+        """
+        Génère un réseau à partir d'une liste de capteurs et d'arcs
+
+        :param _capteurs : liste d'objets de type Noeud
+        :param _arcs : liste de tuples (arc1, arc2)
+
+        :return Un graphe networkX
+        """
+
         _nbr_noeuds_graphe = 0
         _graphe = nx.Graph()
         for _count in range(0, len(_capteurs)):
@@ -390,26 +432,24 @@ class ReseauMoteur:
                                  batterie=_capteurs[_count].C_vie_batterie,
                                  role=_capteurs[_count].N_role)
             _nbr_noeuds_graphe += 1
+
         for _arc in _arcs:
             _graphe.add_edge(_arc[0], _arc[1])
         return Reseau(_nbr_noeuds_graphe, _graphe)
 
-
     @staticmethod
     def RMgenerationHTML(_reseau):
-        _pos = nx.get_node_attributes(_reseau.R_graphe, 'pos')
+        """
+        Génère l'html de l'affichage à partir d'un réseau
 
-        _dmin = 1
-        _ncenter = 0
-        for n in _pos:
-            _x, _y = _pos[n]
-            _d = (_x - 0.5) ** 2 + (_y - 0.5) ** 2
-            if _d < _dmin:
-                _ncenter = n
-                _dmin = _d
+        Algorithme tiré de l'exemple : https://plot.ly/python/network-graphs/
 
-        _p = nx.single_source_shortest_path_length(_reseau.R_graphe, _ncenter)
+        :param _reseau : Objet de type Reseau
 
+        :return l'HTML dans une chaîne de caractère
+        """
+
+        # Initialisation de l'affichage des arcs
         edge_trace = go.Scatter(
             x=[],
             y=[],
@@ -417,14 +457,14 @@ class ReseauMoteur:
             hoverinfo='none',
             mode='lines')
 
+        # Remplissage des coordonnées des arcs pour leurs affichages
         for edge in _reseau.R_graphe.edges():
             x0, y0 = _reseau.R_graphe.node[edge[0]]['pos']
             x1, y1 = _reseau.R_graphe.node[edge[1]]['pos']
             edge_trace['x'] += tuple([x0, x1, None])
             edge_trace['y'] += tuple([y0, y1, None])
 
-        from plotly.grid_objs import Column
-        colonne = Column([1, 2, 3], 'batterie')
+        # Initialisation de l'affichage des noeuds
         node_trace = go.Scatter(
             x=[],
             y=[],
@@ -447,23 +487,28 @@ class ReseauMoteur:
                     xanchor='left',
                     titleside='right'
                 ),
-                gradient=dict(
-                    typesrc=colonne
-                ),
                 line=dict(width=2)))
 
+        # Remplissage des données des noeuds pour leurs affichages
         for node in _reseau.R_graphe.nodes():
             x, y = _reseau.R_graphe.node[node]['pos']
             node_trace['x'] += tuple([x])
             node_trace['y'] += tuple([y])
 
+        # Ajout des informations pour l'affichage d'informations supplémentaires :
+        #   - couleur des noeuds en fonction de leur niveau d'énergie
+        #   - information des noeuds au passage de la souris
         for node, adjacencies in enumerate(_reseau.R_graphe.adjacency()):
+            # Le puit est dessiné en violet et les capteurs en nuance de couleur en fonction du niveau de leur batterie
             if _reseau.R_graphe.node[node]['role'] == Roles._PUIT:
                 node_trace['marker']['color'] += tuple(['purple'])
             else:
-                node_trace['marker']['color'] += tuple([_reseau.R_graphe.node[node]['batterie']]) # La couleur
+                node_trace['marker']['color'] += tuple([_reseau.R_graphe.node[node]['batterie']])  # La couleur
 
-            node_info = ""
+            # Sont affichés au passage de la souris :
+            #   - Le rôle du noeud (puit, émetteur/récepteur, émetteur)
+            #   - l'énergie restante (si ce n'est pas un puit)
+            #   - le nombre de capteurs adjacent
             if _reseau.R_graphe.node[node]['role'] == Roles._PUIT:
                 node_info = "Puit | " + str(len(adjacencies[1])) + " capteurs adjacents"
             else:
@@ -476,6 +521,7 @@ class ReseauMoteur:
 
             node_trace['text'] += tuple([node_info])
 
+        # La création de la figure finale à afficher
         fig = go.Figure(data=[edge_trace, node_trace],
                         layout=go.Layout(
                             title='',
@@ -491,6 +537,7 @@ class ReseauMoteur:
                             xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                             yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
 
+        # Finalement génération du html
         html = plotly.offline.plot(fig, auto_open=False, output_type='div')
         return """<html><head><meta charset="utf-8" /></head><body><script type="text/javascript">window.PlotlyConfig = 
                     {MathJaxConfig: 'local'};</script>""" \
