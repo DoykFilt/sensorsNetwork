@@ -106,7 +106,7 @@ class ReseauControleur(QWidget):
                 _file_manager = FileManager()
                 _chemin, _exist = _file_manager.FMobtenirCheminXMLLocal()
                 if not _exist:
-                    self.RCmessageErreur("Aucun réseau à exporter")
+                    ReseauControleur.RCmessageErreur("Aucun réseau à exporter")
                 else:
                     _reseau = _file_manager.FMchargerReseauDepuisXML(_chemin)
                     if _reseau is not None:
@@ -114,7 +114,7 @@ class ReseauControleur(QWidget):
                             _reseau,
                             _filename
                         )
-                        ReseauControleur.RCmessageInformation("Le graphe a été exporté avec succès !")
+                        ReseauControleur.RCmessageInformation("Le réseau a été exporté avec succès !")
 
         # Cas de demande d'importation depuis un fichier XML
         if _signal == Signaux._CHARGER_XML:

@@ -89,7 +89,7 @@ class FenetreCreation(QtWidgets.QMainWindow, fenetrecreationdesign_ui.Ui_MainWin
         self.FCD_nbr_capteurs_barre_choix.valueChanged.connect(self.FCupdateValues)
 
         # Distances max et min
-        self.__FCD_DISTANCE_MAX_MAX = int(self.FCD_taille_max_barre_choix.value() / 6)
+        self.__FCD_DISTANCE_MAX_MAX = int(self.FCD_taille_max_barre_choix.value() / 5)
         self.FCD_distance_max_barre_choix.setValue(
             int((self.__FCD_DISTANCE_MAX_MAX - self.__FCD_DISTANCE_MAX_MIN) / 2))
         # Appel à une fonction extérieure pour les max et min : Factorisation
