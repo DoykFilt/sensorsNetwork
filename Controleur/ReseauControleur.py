@@ -1,9 +1,10 @@
 from PyQt5.QtWidgets import QWidget, QMessageBox, QFileDialog
 from PyQt5 import QtCore
 
+from Moteur.Simulateur import Simulateur
 from Utilitaires.FileManager import FileManager
 from Modele.Reseau import Reseau
-from Moteur.ReseauMoteur import ReseauMoteur
+from Moteur.Generateur import Generateur
 from Modele.Signaux import Signaux
 from Utilitaires.Log import Log
 from Vue.BarreProgression import BarreProgression
@@ -19,7 +20,7 @@ class ThreadCreation(QtCore.QObject):
 
     """
     # Les connecteurs
-    # connecteur est utilisé par ReseauMoteur pour pour notifier de l'avancement de la création
+    # connecteur est utilisé par Generateur pour pour notifier de l'avancement de la création
     # resultat renvoie le Reseau résultant
     # finished permet d'agir une fois l'execution terminée
     TC_connecteur = QtCore.pyqtSignal(Signaux, float, str, float)
@@ -35,7 +36,7 @@ class ThreadCreation(QtCore.QObject):
         """
 
         super().__init__()
-        self.TC_moteur_reseau = ReseauMoteur(self.TC_connecteur)
+        self.TC_moteur_reseau = Generateur(self.TC_connecteur)
         self.TC_param = _param
 
     def run(self):
@@ -44,13 +45,49 @@ class ThreadCreation(QtCore.QObject):
 
         """
 
-        self.TC_resultat.emit(self.TC_moteur_reseau.RMcreerReseau(self.TC_param))
+        self.TC_resultat.emit(self.TC_moteur_reseau.GcreerReseau(self.TC_param))
         self.TC_finished.emit()
+
+
+class ThreadSimulation(QtCore.QObject):
+    """
+        class ThreadSimulation
+
+        Hérite de QObject pour pouvoir posséder un objet pyqtSignal
+
+        Thread qui permet de lancer la simulation du réseau. Renvoie le informations de l'avancement dans un signal
+
+    """
+    # Les connecteurs
+    # connecteur est utilisé par Simulator pour pour notifier de l'avancement de la simulation
+    TS_connecteur = QtCore.pyqtSignal(Signaux, dict)
+    TS_finished = QtCore.pyqtSignal()
+
+    def __init__(self, _reseau):
+        """
+            Constructeur de la classe
+
+            :param _param : Parametre, pour la création du réseau
+
+        """
+
+        super().__init__()
+        self.TS_simulateur = Simulateur(self.TS_connecteur)
+        self.TS_reseau = _reseau
+
+    def run(self):
+        """
+            Execute la simulation du réseau et emet les signaux en conséquent
+
+        """
+
+        self.TS_simulateur.SlancerSimulation(self.TS_reseau)
+        self.TS_finished.emit()
 
 
 class ReseauControleur(QWidget):
     """
-        class ReseauControleur
+        class Simulateur
 
         Controleur qui le lien entre le modèle et la vue. Il gère toutes les intéractons avec les fenêtres
 
@@ -80,7 +117,7 @@ class ReseauControleur(QWidget):
         self.RC_worker = None
         self.RC_resultat = None
 
-    def RCactionSignalFenetrePrincipale(self, _signal):
+    def RCactionSignalFenetrePrincipale(self, _signal, _saut=0):
         """
             Analyse le signal émit par la fenêtre principale et agit en conséquent
 
@@ -95,42 +132,137 @@ class ReseauControleur(QWidget):
         # Cas de demande d'exportation au format XML
         if _signal == Signaux._EXPORTER_XML:
 
-            # Ouvre une boite de dialogue qui demande à l'utilisateur l'endroit où exporter le fichier
-            _options = QFileDialog.Options()
-            _options |= QFileDialog.DontUseNativeDialog
-            _filename, _ = QFileDialog.getSaveFileName(self, "Spécifier l'endroit où exporter le fichier", "",
-                                                       "Fichier XML (*.xml)", options=_options)
+            _file_manager = FileManager()
+            _reseau = _file_manager.FMchargerEtat(self.RC_fen_principale.FP_selection)
 
-            # Récupère les données XML du réseau affiché et l'enregistre dans un nouveau fichier XML
-            if _filename:
-                _file_manager = FileManager()
-                _chemin, _exist = _file_manager.FMobtenirCheminXMLLocal()
-                if not _exist:
-                    ReseauControleur.RCmessageErreur("Aucun réseau à exporter")
-                else:
-                    _reseau = _file_manager.FMchargerReseauDepuisXML(_chemin)
-                    if _reseau is not None:
-                        _file_manager.FMsauvegarderReseauVersXML(
-                            _reseau,
-                            _filename
-                        )
-                        ReseauControleur.RCmessageInformation("Le réseau a été exporté avec succès !")
+            if _reseau is None:
+                ReseauControleur.RCmessageErreur("Aucun réseau à exploiter")
+
+            else:
+                # Ouvre une boite de dialogue qui demande à l'utilisateur l'endroit où exporter le fichier
+                _options = QFileDialog.Options()
+                _options |= QFileDialog.DontUseNativeDialog
+                _filename, _ = QFileDialog.getSaveFileName(self, "Spécifier l'endroit où exporter le fichier", "",
+                                                           "Fichier XML (*.xml)", options=_options)
+
+                # Récupère les données XML du réseau affiché et l'enregistre dans un nouveau fichier XML
+                if _filename:
+                    _file_manager.FMsauvegarderReseauVersXML(_reseau, _filename)
+                    ReseauControleur.RCmessageInformation("Le réseau a été exporté avec succès !")
 
         # Cas de demande d'importation depuis un fichier XML
         if _signal == Signaux._CHARGER_XML:
+            # try:
+                # Ouvre une boite de dialogue qui demande à l'utilisateur le fichier XML contenant le réseau
+                _options = QFileDialog.Options()
+                _options |= QFileDialog.DontUseNativeDialog
+                _filename, _ = QFileDialog.getOpenFileName(self, "Spécifier le fichier à importer", "",
+                                                           "Fichier XML (*.xml)", options=_options)
+                if _filename:
+                    _file_manager = FileManager()
+                    _reseau = _file_manager.FMchargerReseauDepuisXML(_filename)
+                    if _reseau is not None:
+                        _file_manager.FMviderEtats(_garder_etat_initial=False)
+                        _file_manager.FMenregistrerEtat(_reseau)
 
-            # Ouvre une boite de dialogue qui demande à l'utilisateur le fichier XML contenant le réseau
+                        ReseauControleur.RCmessageInformation("Le réseau a été importé avec succès !")
+                        self.RC_fen_principale.FPuptdateLabelSelection(0, 1)
+                        self.RC_fen_principale.FPafficherReseau()
+            # except Exception as _e:
+            #     ReseauControleur.RCmessageErreur("Erreur lors du chargement du fichier : " + str(_e))
+
+        if _signal == Signaux._EXPORTER_RESULTAT:
+            _file_manager = FileManager()
+            if len(_file_manager.FMlisterEtats()) == 0:
+                ReseauControleur.RCmessageErreur("Aucune données à exporter")
+
+            else:
+                # Ouvre une boite de dialogue qui demande à l'utilisateur l'endroit où exporter le dossier
+                _options = QFileDialog.Options()
+                _options |= QFileDialog.DontUseNativeDialog
+                _options |= QFileDialog.ShowDirsOnly
+                _filename = QFileDialog.getExistingDirectory(self, "Spécifier l'endroit où exporter l'ensemble des données", "",
+                                                                options=_options)
+
+                _done, _message = _file_manager.FMexporterResultat(_filename)
+
+                if not _done:
+                    ReseauControleur.RCmessageErreur("Erreur lors de l'exportation : \n" + _message)
+                else:
+                    ReseauControleur.RCmessageInformation("L'ensemble des fichiers a été exporté avec succès !")
+
+        if _signal == Signaux._IMPORTER_RESULTAT:
+            # Ouvre une boite de dialogue qui demande à l'utilisateur l'endroit où se situe le dossier à importer
             _options = QFileDialog.Options()
             _options |= QFileDialog.DontUseNativeDialog
-            _filename, _ = QFileDialog.getOpenFileName(self, "Spécifier le fichier à importer", "",
-                                                       "Fichier XML (*.xml)", options=_options)
-            if _filename:
-                _file_manager = FileManager()
-                _reseau = _file_manager.FMchargerReseauDepuisXML(_filename)
-                if _reseau is not None:
-                    _file_manager.FMsauvegarderLocal(_reseau)
-                    ReseauControleur.RCmessageInformation("Le graphe a été importé avec succès !")
-                    self.RC_fen_principale.FPafficherReseau()
+            _options |= QFileDialog.ShowDirsOnly
+            _filename = QFileDialog.getExistingDirectory(self, "Sélectionner le dossier à importer", "",
+                                                            options=_options)
+            _file_manager = FileManager()
+            _nbr_imported, _message = _file_manager.FMimporterResultat(_filename)
+
+            if _nbr_imported == 0:
+                ReseauControleur.RCmessageErreur("Erreur lors de l'exportation : \n" + _message)
+            else:
+                ReseauControleur.RCmessageInformation("L'ensemble des fichiers a été exporté avec succès !")
+                self.RC_fen_principale.FPuptdateLabelSelection(0, _nbr_imported)
+                self.RC_fen_principale.FPafficherReseau()
+
+        if _signal == Signaux._LANCER_SIMULATION:
+            self.RClancerSimulation()
+
+        if _signal == Signaux._ARRIERE:
+            if self.RC_fen_principale.FP_selection > 0:
+                self.RC_fen_principale.FPuptdateLabelSelection(self.RC_fen_principale.FP_selection - 1,
+                                                               self.RC_fen_principale.FP_total)
+                self.RC_fen_principale.FPafficherReseau()
+
+        if _signal == Signaux._SAUT_ARRIERE:
+            pass
+
+        if _signal == Signaux._AVANT:
+            if self.RC_fen_principale.FP_selection < self.RC_fen_principale.FP_total - 1:
+                self.RC_fen_principale.FPuptdateLabelSelection(self.RC_fen_principale.FP_selection + 1,
+                                                               self.RC_fen_principale.FP_total)
+                self.RC_fen_principale.FPafficherReseau()
+
+        if _signal == Signaux._SAUT_AVANT:
+            pass
+
+        if _signal == Signaux._SAUT_TEMPOREL:
+            self.RC_fen_principale.FPuptdateLabelSelection(_saut, self.RC_fen_principale.FP_total)
+            self.RC_fen_principale.FPafficherReseau()
+
+    def RClancerSimulation(self):
+
+        _file_manager = FileManager()
+        _file_manager.FMviderEtats(_garder_etat_initial=True)
+
+        _reseau = _file_manager.FMchargerEtat(0)
+
+        if _reseau is None:
+            ReseauControleur.RCmessageErreur("Aucun réseau à exploiter")
+        else:
+            # Création d'abord d'un objet ThreadSimulation et mutation en Thread pour pouvoir manipuler ses connecteurs
+            self.RC_worker = ThreadSimulation(_reseau)
+            self.RC_worker.moveToThread(self.RC_thread)
+            self.RC_worker.TS_finished.connect(self.RC_thread.quit)
+
+            self.RC_thread.started.connect(self.RC_worker.run)
+            self.RC_thread.finished.connect(self.RC_fen_principale.FPafficherReseau)
+
+            self.RC_worker.TS_connecteur.connect(self.RCactionSignalSimulateur)
+
+            self.RC_thread.start()
+
+    def RCactionSignalSimulateur(self, _signal, _datas):
+        """
+            Analyse le signal émit par le simulateur
+        """
+        if _signal == Signaux._NOUVEL_ETAT:
+
+            self.RC_fen_principale.FPuptdateLabelSelection(_datas["etat"], _datas["total"])
+            self.RC_fen_principale.FPafficherReseau()
 
     def RCactionSignalFenetreCreation(self, _signal, _params=None):
         """
@@ -178,13 +310,11 @@ class ReseauControleur(QWidget):
         if self.RC_worker is not None:
             self.RC_worker.deleteLater()
         if self.RC_resultat is not None:
-            _fileManager = FileManager()
-            _fileManager.FMsauvegarderLocal(_reseau=self.RC_resultat)
             self.RC_fen_principale.FPafficherReseau()
 
     def RCactionSignalMoteur(self, _signal, _valeur, _texte, _temps):
         """
-            Analyse le signal émit par la création du réseau (Objet ReseauMoteur)
+            Analyse le signal émit par la création du réseau (Objet Generateur)
             Utiliser pour instancier et faire progresser une barre de progression
 
             :param _signal : Le signal de type Signals à analyser
@@ -216,12 +346,16 @@ class ReseauControleur(QWidget):
 
     def RCactionSignalMoteurResultat(self, _reseau):
         """
-            Analyse le signal émit  à la fin de la création du réseau (Objet ReseauMoteur)
+            Analyse le signal émit  à la fin de la création du réseau (Objet Generateur)
 
             :param _reseau : le résulat émit (Reseau)
 
         """
         self.RC_resultat = _reseau
+        _file_manager = FileManager()
+        _file_manager.FMviderEtats(_garder_etat_initial=False)
+        _file_manager.FMenregistrerEtat(_reseau=self.RC_resultat)
+        self.RC_fen_principale.FPuptdateLabelSelection(0, 1)
 
     def RCcontroleParametres(self, _param):
         """

@@ -5,15 +5,17 @@ import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 import plotly
 import networkx as nx
+from plotly.utils import numpy
 
 from Modele.Roles import Roles
 from Modele.Signaux import Signaux
 from Modele.Reseau import Reseau
+from Vue.FenetreCreation import FenetreCreation
 
 
-class ReseauMoteur:
+class Generateur:
     """
-        class ReseauMoteur
+        class Generateur
 
         Classe qui regroupe les outils utiles pour la génération d'un réseau
         La plupart des méthodes sont déclarées statiques
@@ -21,18 +23,18 @@ class ReseauMoteur:
     """
 
     def __init__(self, _connecteur):
-        super(ReseauMoteur, self).__init__()
-        self.RM_connecteur = _connecteur
+        super(Generateur, self).__init__()
+        self.G_connecteur = _connecteur
 
-    def RMobtenirConnecteur(self):
+    def GobtenirConnecteur(self):
         """
         Renvoie le connecteur, permet d'agir à l'extérieur de la classe aux émissions de l'intérieur
 
         :return Le connecteur pyqtSignal
         """
-        return self.RM_connecteur
+        return self.G_connecteur
 
-    def RMcreerReseau(self, _params):
+    def GcreerReseau(self, _params):
         """
         Permet de généré un réseau qui respectent les prérequis de l'application
 
@@ -42,38 +44,41 @@ class ReseauMoteur:
 
         """
 
-        self.RM_connecteur.emit(Signaux._INITIALISATION_CREATION_GRAPHE, 0,
-                                "Initialisation de la création du réseau..", -1)
+        self.G_connecteur.emit(Signaux._INITIALISATION_CREATION_GRAPHE, 0,
+                               "Initialisation de la création du réseau..", -1)
 
         _reseau = Reseau()
         _reseau.R_nbr_noeuds = _params.P_nbr_capteurs
 
         # Génération des positions des capteurs
-        self.RM_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 5, "Génération des positions initiales..", -1)
-        _pos = ReseauMoteur.__RMgenererPositions(_params.P_nbr_capteurs,
-                                                 _params.P_max_size,
-                                                 _params.P_marge,
-                                                 _params.P_min_distance)
-        self.RM_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 10, "Positions générées", -1)
+        self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 5, "Génération des positions initiales..", -1)
+        _pos = Generateur.__GgenererPositions(_params.P_nbr_capteurs,
+                                              _params.P_max_size,
+                                              _params.P_marge,
+                                              _params.P_min_distance)
+        self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 10, "Positions générées", -1)
 
         # Création du graphe
-        self.RM_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 10, "Génération de la topologie du réseau..", -1)
-        _graphe = ReseauMoteur.__RMgenerationReseau(_params.P_nbr_capteurs, _pos, _params.P_max_distance)
-        self.RM_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 15, "Topologie générée..", -1)
+        self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 10, "Génération de la topologie du réseau..", -1)
+        _graphe = Generateur.__GgenerationReseau(_params.P_nbr_capteurs, _pos, _params.P_max_distance)
+        self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 15, "Topologie générée..", -1)
 
         # Réagencement du graphe en un graphe connexe
-        _reseau.R_graphe = ReseauMoteur.RMconnexeur(_graphe, _params.P_max_distance, self.RM_connecteur)
+        _reseau.R_graphe = Generateur.Gconnexeur(_graphe, _params.P_max_distance, self.G_connecteur)
 
         # Assignation des paramètres
-        self.RM_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 100, "Mise en place des paramètres réseaux..", -1)
-        _reseau.R_graphe = self.__RMparametrageReseau(_reseau.R_graphe, _params)
+        self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 100, "Mise en place des paramètres réseaux..", -1)
+        _reseau.R_graphe = self.__GparametrageReseau(_reseau.R_graphe, _params)
 
-        self.RM_connecteur.emit(Signaux._FIN_CREATION_GRAPHE, 0, "Réseau généré !", 0)
+        from Moteur.Simulateur import Simulateur
+        Simulateur.SconfigurationTopologique(_reseau)
+
+        self.G_connecteur.emit(Signaux._FIN_CREATION_GRAPHE, 0, "Réseau généré !", 0)
 
         return _reseau
 
     @staticmethod
-    def __RMparametrageReseau(_graphe, _params):
+    def __GparametrageReseau(_graphe, _params):
         """
         Permet de placer les paramètres de rôle et niveau de batterie dans les noeuds.
         Le premier noeud correspond au puit
@@ -90,14 +95,17 @@ class ReseauMoteur:
         # Niveau initiale de batterie
         _batterie = {i: _params.P_capacitees_batteries for i in range(0, _params.P_nbr_capteurs)}
         _batterie[0] = -1
+        # Si les arcs appartiennent à l'ensemble dominant
+        _dominant = {e: {"dominant": Roles._ARC_NON_DOMINANT} for e in _graphe.edges()}
 
         nx.set_node_attributes(_graphe, _roles, "role")
         nx.set_node_attributes(_graphe, _batterie, "batterie")
+        nx.set_edge_attributes(_graphe, _dominant)
 
         return _graphe
 
     @staticmethod
-    def __RMgenererPositions(_nbr_noeuds, _max_size, _marge, _min_distance):
+    def __GgenererPositions(_nbr_noeuds, _max_size, _marge, _min_distance):
         """
         Fonction qui génèe les positions des noeuds afin qu'ils soient mieux reparti
         Elle découpe en aires rectangulaires les surfaces non occupées par les noeuds en prenant en compte la distance
@@ -172,7 +180,7 @@ class ReseauMoteur:
         return _pos
 
     @staticmethod
-    def __RMafficherPositions(_pos, _max_size, _min_distance):
+    def __GafficherPositions(_pos, _max_size, _min_distance):
         """
         Fonction permet de visualiser sur une fenêtre matplotlib la disposition d'un nuage de point avec un cercle par
         point qui correspond à la distance minimum que doivent avoir les noeuds entre eux
@@ -198,7 +206,7 @@ class ReseauMoteur:
         plt.show()
 
     @staticmethod
-    def RMconnexeur(_graphe, _max_distance, _connecteur=None):
+    def Gconnexeur(_graphe, _max_distance, _connecteur=None):
         """
         Connecte entre eux les sous-graphes sur multi-graphe passé en paramètre afin d'en créer un unique
 
@@ -215,7 +223,7 @@ class ReseauMoteur:
             _pos[_node] = (_graphe.node[_node]['pos'])
             _nbr_noeuds_graphe += 1
 
-        # Récupère les sous-graphes, _count les dénombe
+        # Récupère les sous-graphes, _count les dénombre
         _subgraphs_generator = nx.connected_component_subgraphs(_graphe, copy=True)
         _count = 0
         _subgraphs = []
@@ -351,7 +359,7 @@ class ReseauMoteur:
                                _y + _vecteur[1])
 
             # Finalement Recalcule du graphe et de ses sous-graphes
-            _graphe = ReseauMoteur.__RMgenerationReseau(_nbr_noeuds_graphe, _pos, _max_distance)
+            _graphe = Generateur.__GgenerationReseau(_nbr_noeuds_graphe, _pos, _max_distance)
 
             _subgraphs_generator = nx.connected_component_subgraphs(_graphe, copy=True)
             _count = 0
@@ -375,7 +383,7 @@ class ReseauMoteur:
         return _graphe
 
     @staticmethod
-    def __RMgenerationReseau(_nbr_noeuds, _pos, _max_distance):
+    def __GgenerationReseau(_nbr_noeuds, _pos, _max_distance):
 
         """
         Génère le réseau à partir d'une liste de positions des noeuds
@@ -408,7 +416,7 @@ class ReseauMoteur:
                                                p_dist=p_dist)
 
     @staticmethod
-    def RMcreerReseauAvecCapteursEtArcs(_capteurs, _arcs):
+    def GcreerReseauAvecCapteursEtArcs(_capteurs, _arcs):
         """
         Génère un réseau à partir d'une liste de capteurs et d'arcs
 
@@ -425,20 +433,24 @@ class ReseauMoteur:
                 _graphe.add_node(_count,
                                  pos=_capteurs[_count].N_pos,
                                  batterie=-1,
-                                 role=_capteurs[_count].N_role)
+                                 role=_capteurs[_count].N_role,
+                                 route=_count)
             else:
                 _graphe.add_node(_count,
                                  pos=_capteurs[_count].N_pos,
                                  batterie=_capteurs[_count].C_vie_batterie,
-                                 role=_capteurs[_count].N_role)
+                                 role=_capteurs[_count].N_role,
+                                 route=_capteurs[_count].N_route)
             _nbr_noeuds_graphe += 1
 
         for _arc in _arcs:
-            _graphe.add_edge(_arc[0], _arc[1])
+            _graphe.add_edge(_arc.A_noeud1,
+                             _arc.A_noeud2,
+                             dominant=_arc.A_dominant)
         return Reseau(_nbr_noeuds_graphe, _graphe)
 
     @staticmethod
-    def RMgenerationHTML(_reseau):
+    def GgenerationHTML(_reseau):
         """
         Génère l'html de l'affichage à partir d'un réseau
 
@@ -449,80 +461,188 @@ class ReseauMoteur:
         :return l'HTML dans une chaîne de caractère
         """
 
-        # Initialisation de l'affichage des arcs
-        edge_trace = go.Scatter(
-            x=[],
-            y=[],
-            line=dict(width=0.5, color='#888'),
-            hoverinfo='none',
-            mode='lines')
+        from Moteur.Simulateur import Simulateur
+        _simulateur = Simulateur(None)
+        _, _ensemble_deconnecte = _simulateur._SfinDeVieAtteinte(_reseau)
 
-        # Remplissage des coordonnées des arcs pour leurs affichages
-        for edge in _reseau.R_graphe.edges():
-            x0, y0 = _reseau.R_graphe.node[edge[0]]['pos']
-            x1, y1 = _reseau.R_graphe.node[edge[1]]['pos']
-            edge_trace['x'] += tuple([x0, x1, None])
-            edge_trace['y'] += tuple([y0, y1, None])
+        colors = []
+        colors_dominant = []
+        for _edge in _reseau.R_graphe.edges():
+            if _edge in _reseau.R_ensemble_dominant.edges():
+                if _edge[0] in _ensemble_deconnecte or _edge[1] in _ensemble_deconnecte:
+                    colors_dominant.append("black")
+                else:
+                    colors_dominant.append("red")
+            else:
+                if _edge[0] in _ensemble_deconnecte or _edge[1] in _ensemble_deconnecte:
+                    colors.append("gray")
+                else:
+                    colors.append("#A9D0F5")
+        _arcs = []
+        _arcs_dominants = []
+        for _arc in _reseau.R_graphe.edges():
+            if _arc in _reseau.R_ensemble_dominant.edges():
+                _arcs_dominants.append(_arc)
+            else:
+                _arcs.append(_arc)
 
-        # Initialisation de l'affichage des noeuds
-        node_trace = go.Scatter(
-            x=[],
-            y=[],
-            text=[],
-            mode='markers',
-            hoverinfo='text',
-            marker=dict(
-                showscale=True,
-                # colorscale options
-                # 'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
-                # 'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
-                # 'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
-                colorscale='Reds',
-                reversescale=True,
-                color=[],
-                size=10,
-                colorbar=dict(
-                    thickness=15,
-                    title='Niveau de la batterie',
-                    xanchor='left',
-                    titleside='right'
-                ),
-                line=dict(width=2)))
+        edge_trace = [dict(
+            type='scatter',
+            x=[_reseau.R_graphe.node[edge[0]]['pos'][0], _reseau.R_graphe.node[edge[1]]['pos'][0]],
+            y=[_reseau.R_graphe.node[edge[0]]['pos'][1], _reseau.R_graphe.node[edge[1]]['pos'][1]],
+            mode='lines',
+            line=dict(width=2, color=colors[c]))
+            for c, edge in enumerate(_arcs)]
 
-        # Remplissage des données des noeuds pour leurs affichages
-        for node in _reseau.R_graphe.nodes():
-            x, y = _reseau.R_graphe.node[node]['pos']
-            node_trace['x'] += tuple([x])
-            node_trace['y'] += tuple([y])
+        edge_trace_dominant = [dict(
+            type='scatter',
+            x=[_reseau.R_graphe.node[edge[0]]['pos'][0], _reseau.R_graphe.node[edge[1]]['pos'][0]],
+            y=[_reseau.R_graphe.node[edge[0]]['pos'][1], _reseau.R_graphe.node[edge[1]]['pos'][1]],
+            mode='lines',
+            line=dict(width=2, color=colors_dominant[c]))
+            for c, edge in enumerate(_arcs_dominants)]
+
+        _nodes_pos = []
+        _nodes_pos_dominant = []
+        _nodes_pos_deconnectes = []
+        for _noeud in _reseau.R_graphe.nodes():
+            if _noeud in _ensemble_deconnecte:
+                _nodes_pos_deconnectes.append([_reseau.R_graphe.node[_noeud]['pos'][0],
+                                               _reseau.R_graphe.node[_noeud]['pos'][1]])
+            elif _noeud in _reseau.R_ensemble_dominant.nodes():
+                _nodes_pos_dominant.append([_reseau.R_graphe.node[_noeud]['pos'][0],
+                                            _reseau.R_graphe.node[_noeud]['pos'][1]])
+            else:
+                _nodes_pos.append([_reseau.R_graphe.node[_noeud]['pos'][0], _reseau.R_graphe.node[_noeud]['pos'][1]])
+        _nodes_pos = numpy.array(_nodes_pos)
+        _nodes_pos_dominant = numpy.array(_nodes_pos_dominant)
+        _nodes_pos_deconnectes = numpy.array(_nodes_pos_deconnectes)
+
+        _x, _y = [], []
+        for _pos in _nodes_pos:
+            _x.append(_pos[0])
+            _y.append(_pos[1])
+        node_trace = dict(type='scatter',
+                          x=_x,
+                          y=_y,
+                          hoverinfo='text',
+                          text=[],
+                          mode='markers',
+                          marker=dict(
+                              showscale=True,
+                              cmax=FenetreCreation.FCobtenirCapaciteMaxBatterie(),
+                              cmin=0,
+                              # colorscale options
+                              # 'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
+                              # 'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
+                              # 'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
+                              colorscale='Reds',
+                              reversescale=True,
+                              color=[],
+                              size=10,
+                              colorbar=dict(
+                                  thickness=15,
+                                  title='Niveau de la batterie',
+                                  xanchor='left',
+                                  titleside='right'
+                              )))
+
+        _x, _y = [], []
+        for _pos in _nodes_pos_dominant:
+            _x.append(_pos[0])
+            _y.append(_pos[1])
+        node_trace_dominant = dict(type='scatter',
+                                   x=_nodes_pos_dominant[:, 0],
+                                   y=_nodes_pos_dominant[:, 1],
+                                   hoverinfo='text',
+                                   text=[],
+                                   mode='markers',
+                                   marker=dict(
+                                       showscale=False,
+                                       cmax=FenetreCreation.FCobtenirCapaciteMaxBatterie(),
+                                       cmin=0,
+                                       # colorscale options
+                                       # 'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
+                                       # 'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
+                                       # 'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
+                                       colorscale='Reds',
+                                       reversescale=True,
+                                       color=[],
+                                       size=10,
+                                       colorbar=dict(
+                                           thickness=15,
+                                           title='Niveau de la batterie',
+                                           xanchor='left',
+                                           titleside='right'
+                                       ),
+                                       line=dict(width=2, color="red")))
+
+        _x, _y = [], []
+        for _pos in _nodes_pos_deconnectes:
+            _x.append(_pos[0])
+            _y.append(_pos[1])
+        if len(_nodes_pos_deconnectes) > 0:
+            node_trace_deconnecte = dict(type='scatter',
+                                         x=_nodes_pos_deconnectes[:, 0],
+                                         y=_nodes_pos_deconnectes[:, 1],
+                                         hoverinfo='text',
+                                         text=[],
+                                         mode='markers',
+                                         marker=dict(
+                                             showscale=False,
+                                             # colorscale options
+                                             # 'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
+                                             # 'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
+                                             # 'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
+                                             colorscale='Reds',
+                                             reversescale=True,
+                                             color=[],
+                                             size=10,
+                                             line=dict(width=0)))
+        else:
+            node_trace_deconnecte = []
+
+        if len(_nodes_pos) == 0:
+            node_trace_dominant["marker"]["showscale"] = True
 
         # Ajout des informations pour l'affichage d'informations supplémentaires :
         #   - couleur des noeuds en fonction de leur niveau d'énergie
         #   - information des noeuds au passage de la souris
         for node, adjacencies in enumerate(_reseau.R_graphe.adjacency()):
             # Le puit est dessiné en violet et les capteurs en nuance de couleur en fonction du niveau de leur batterie
-            if _reseau.R_graphe.node[node]['role'] == Roles._PUIT:
-                node_trace['marker']['color'] += tuple(['purple'])
-            else:
-                node_trace['marker']['color'] += tuple([_reseau.R_graphe.node[node]['batterie']])  # La couleur
-
             # Sont affichés au passage de la souris :
             #   - Le rôle du noeud (puit, émetteur/récepteur, émetteur)
             #   - l'énergie restante (si ce n'est pas un puit)
             #   - le nombre de capteurs adjacent
-            if _reseau.R_graphe.node[node]['role'] == Roles._PUIT:
-                node_info = "Puit | " + str(len(adjacencies[1])) + " capteurs adjacents"
-            else:
-                _role = "Emetteur/Récepteur"
-                if _reseau.R_graphe.node[node]['role'] == Roles._EMETTEUR:
-                    _role = "Emetteur"
-                node_info = "Capteur n°" + str(node) + " | " + _role + " |" + \
-                            "Energie restante : " + str(_reseau.R_graphe.node[node]['batterie']) + " | " + \
-                            str(len(adjacencies[1])) + " capteurs adjacents"
 
-            node_trace['text'] += tuple([node_info])
+            node_info = "Capteur n°" + str(node) + " | Emetteur/Récepteur | " + \
+                        "Energie restante : " + str(_reseau.R_graphe.node[node]['batterie']) + " | " + \
+                        "Routage : " + str(_reseau.R_graphe.node[node]['route'])
+
+            if node in _ensemble_deconnecte:
+                if _reseau.R_graphe.nodes()[node]['batterie'] > 0:
+                    node_trace_deconnecte['marker']['color'] += tuple(['gray'])
+                else:
+                    node_trace_deconnecte['marker']['color'] += tuple(['black'])
+                node_trace_deconnecte['text'] += tuple([node_info])
+            elif node in _reseau.R_ensemble_dominant:
+                if _reseau.R_graphe.node[node]['role'] == Roles._PUIT:
+                    node_trace_dominant['marker']['color'] += tuple(['purple'])
+                    node_info = "Puit | " + str(len(adjacencies[1])) + " capteurs adjacents"
+                else:
+                    node_trace_dominant['marker']['color'] += tuple([_reseau.R_graphe.node[node]['batterie']])
+                node_trace_dominant['text'] += tuple([node_info])
+            else:
+                node_trace['marker']['color'] += tuple([_reseau.R_graphe.node[node]['batterie']])
+                node_trace['text'] += tuple([node_info])
+
+        if len(_nodes_pos_deconnectes) > 0:
+            _datas = edge_trace + [node_trace] + edge_trace_dominant + [node_trace_deconnecte] + [node_trace_dominant]
+        else:
+            _datas = edge_trace + [node_trace] + edge_trace_dominant + [node_trace_dominant]
 
         # La création de la figure finale à afficher
-        fig = go.Figure(data=[edge_trace, node_trace],
+        fig = go.Figure(data=_datas,
                         layout=go.Layout(
                             title='',
                             titlefont=dict(size=16),

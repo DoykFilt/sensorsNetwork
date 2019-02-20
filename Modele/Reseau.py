@@ -17,3 +17,11 @@ class Reseau:
         """
         self.R_nbr_noeuds = _nbr_noeuds
         self.R_graphe = _graphe
+        self.R_ensemble_dominant = None
+
+    def RensembleFeuilles(self):
+        _feuilles = []
+        for _noeud in self.R_graphe.nodes():
+            if _noeud not in self.R_ensemble_dominant:
+                _feuilles.append(_noeud)
+        return _feuilles

@@ -54,14 +54,96 @@
         <layout class="QVBoxLayout" name="FPD_layout_gauche_haut"/>
        </item>
        <item>
-        <widget class="QSlider" name="FPD_barre_temporelle">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-        </widget>
+        <layout class="QHBoxLayout" name="FPD_layout_barre_temporelle">
+         <item>
+          <widget class="QSlider" name="FPD_barre_temporelle">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="FPD_layout_control_resultat">
+         <item>
+          <widget class="QPushButton" name="FPD_boutton_saut_arriere">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>&lt;&lt;</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="FPD_boutton_arrire">
+           <property name="text">
+            <string>&lt;</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="FPD_espace_1">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="FPD_label_selection">
+           <property name="text">
+            <string>Sélection :</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="FPD_selection_barre_temporelle">
+           <property name="text">
+            <string>Selection / Total</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="FPD_espace_2">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="FPD_boutton_avant">
+           <property name="text">
+            <string>&gt;</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="FPD_boutton_saut_avant">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>&gt;&gt;</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
        <item>
         <layout class="QHBoxLayout" name="FPD_layout_gauche_bas">
@@ -75,7 +157,7 @@
          <item>
           <widget class="QPushButton" name="FPD_bouton_lancer_simulation">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="text">
             <string>Lancer la simulation</string>
@@ -129,9 +211,9 @@
         </widget>
        </item>
        <item>
-        <widget class="QTextBrowser" name="FPD_log">
+        <widget class="QTextBrowser" name="FPD_aire_informations">
          <property name="enabled">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
         </widget>
        </item>
@@ -162,7 +244,7 @@
     </widget>
     <widget class="QMenu" name="FPD_menu_charger">
      <property name="title">
-      <string>Charger ..</string>
+      <string>Importer ..</string>
      </property>
      <addaction name="FPDActionChargerReseau"/>
      <addaction name="FPDActionChargerResultats"/>
@@ -184,28 +266,28 @@
   </action>
   <action name="FPDActionExporterReseau">
    <property name="text">
-    <string>.. le réseau (.XML)</string>
+    <string>.. le réseau affiché (.XML)</string>
    </property>
   </action>
   <action name="FDPActionExporterSimulation">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="text">
-    <string>.. le résultat de la simulation (.XML)</string>
+    <string>.. le résultat de la simulation (Dossier complet)</string>
    </property>
   </action>
   <action name="FPDActionChargerReseau">
    <property name="text">
-    <string>.. un réseau .XML</string>
+    <string>.. un réseau en tant qu'état initial (.XML)</string>
    </property>
   </action>
   <action name="FPDActionChargerResultats">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="text">
-    <string>.. un résultat de simulation</string>
+    <string>.. un résultat de simulation (Dossier complet)</string>
    </property>
   </action>
   <action name="action_le_r_seau_HTML">
@@ -217,4 +299,3 @@
  <resources/>
  <connections/>
 </ui>
-

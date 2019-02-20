@@ -9,7 +9,7 @@ class Noeud:
 
     """
 
-    def __init__(self, _pos, _role):
+    def __init__(self, _pos, _role, _route):
         """
             Constructeur de la classe
 
@@ -19,3 +19,4 @@ class Noeud:
         """
         self.N_pos = _pos
         self.N_role = _role
+        self.N_route = _route

@@ -8,11 +8,17 @@ class Signaux(Enum):
     """
 
     # Signaux émis par la fenêtre principale
-    _GENERER_RESEAU = 1
+    _GENERER_RESEAU = 1.0
     _LANCER_SIMULATION = 1.1
-    _EXPORTER_XML = 1.2
-    _CHARGER_XML = 1.3
-    _EXPORTER_RESULTAT = 1.4
+    _EXPORTER_XML = 1.21
+    _CHARGER_XML = 1.22
+    _EXPORTER_RESULTAT = 1.41
+    _IMPORTER_RESULTAT = 1.42
+    _ARRIERE = 1.511
+    _SAUT_ARRIERE = 1.512
+    _AVANT = 1.521
+    _SAUT_AVANT = 1.522
+    _SAUT_TEMPOREL = 1.50
 
     # Signaux émis par le moteur lors de la génération d'un graphe
     _INITIALISATION_CREATION_GRAPHE = 2
@@ -23,4 +29,7 @@ class Signaux(Enum):
     # Signaux émis par la fenêtre de paramétrage des créations de graphe
     _ANNULER_PARAMETRES = 3
     _VALIDER_PARAMETRES = 3.1
+
+    # Signaux émis lors de la simulation
+    _NOUVEL_ETAT = 4
 

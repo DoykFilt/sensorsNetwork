@@ -18,3 +18,5 @@ class Roles(Enum):
     _EMETTEUR = 1
     _EMETTEUR_RECEPTEUR = 2
 
+    _ARC_DOMINANT = 3
+    _ARC_NON_DOMINANT = 4

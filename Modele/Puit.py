@@ -19,5 +19,5 @@ class Puit(Noeud):
             :param _pos : tuple de float (x, y)
 
         """
-        super().__init__(_pos, Roles._PUIT)
+        super().__init__(_pos, Roles._PUIT, -1)
 

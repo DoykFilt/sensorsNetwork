@@ -26,7 +26,7 @@ class FenetreCreation(QtWidgets.QMainWindow, fenetrecreationdesign_ui.Ui_MainWin
     __FCD_NBR_CAPTEURS_MAX = None  # Définit dans l'init, dépend de la largeur
 
     __FCD_CAPACITE_BATTERIE_MIN = 1
-    __FCD_CAPACITE_BATTERIE_MAX = 10
+    __FCD_CAPACITE_BATTERIE_MAX = 150
 
     __FCD_LARGEUR_MIN = 10
     __FCD_LARGEUR_MAX = 500
@@ -209,7 +209,7 @@ class FenetreCreation(QtWidgets.QMainWindow, fenetrecreationdesign_ui.Ui_MainWin
         Emission du signal quand le annuler est cliqué
 
         """
-        self.FC_connecteur.emit(Signaux._ANNULER_PARAMETRES)
+        self.FC_connecteur.emit(Signaux._ANNULER_PARAMETRES, self.FCobtenirParametres())
 
     def FCobtenirParametres(self):
         """
@@ -226,3 +226,6 @@ class FenetreCreation(QtWidgets.QMainWindow, fenetrecreationdesign_ui.Ui_MainWin
                           _nbr_puits=1
                           )
 
+    @staticmethod
+    def FCobtenirCapaciteMaxBatterie():
+        return FenetreCreation.__FCD_CAPACITE_BATTERIE_MAX

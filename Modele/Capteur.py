@@ -12,14 +12,15 @@ class Capteur(Noeud):
 
     """
 
-    def __init__(self, _pos, _vie_batterie, _role):
+    def __init__(self, _pos, _vie_batterie, _role, _route):
         """
             Constructeur de la classe
 
             :param _pos : tuple de float (x, y)
             :param _role : Enum Roles
             :param _vie_batterie : float
+            :param _route : int, le noeud vers lequel envoyer les données
         """
 
-        super().__init__(_pos, _role)
+        super().__init__(_pos, _role, _route)
         self.C_vie_batterie = _vie_batterie
