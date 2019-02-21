@@ -1,7 +1,6 @@
 import errno
 import os
 import shutil
-from pathlib import Path
 from xml.etree.ElementTree import Element, SubElement, tostring, parse
 from xml.dom import minidom
 
@@ -198,9 +197,9 @@ class Singleton(object):
             ReseauControleur.RCmessageErreur("Le nombre de noeuds en meta et réél ne correspondent pas")
             return None
 
-        # Initialisation du réseau
         from Moteur.Simulateur import Simulateur
-        Simulateur.SconfigurationTopologique(_reseau)
+        _reseau.R_ensemble_dominant = Simulateur.SdeterminationEnsembleDominant(_reseau)
+
         return _reseau
 
     def FMobtenirCheminHTMLVide(self):
@@ -247,6 +246,11 @@ class Singleton(object):
         with open(_fichier_etat + ".html", 'w') as f:
             f.write(Generateur.GgenerationHTML(_reseau))
 
+        from Controleur.Statistiques import Statistiques
+        _statistiques = Statistiques()
+        _statistiques.SajouterDonnees(_reseau)
+        self.FMsauvegarderStatistiques(_statistiques)
+
         return _numero_etat, len(_liste_etats) + 1
 
     def FMchargerEtat(self, _numero_etat):
@@ -255,7 +259,9 @@ class Singleton(object):
         if not os.path.exists(_fichier_etat):
             return None
         else:
-            return self.FMchargerReseauDepuisXML(_fichier_etat)
+            _reseau = self.FMchargerReseauDepuisXML(_fichier_etat)
+
+            return _reseau
 
     def FMchargerHTMLEtat(self, _numero_etat):
         _chemin = self.FM_chemin_local + "\\resultats simulation" + "\\etat" + str(_numero_etat) + ".html"
@@ -267,6 +273,9 @@ class Singleton(object):
         _chemin = self.FM_chemin_local + "\\resultats simulation"
 
         if os.path.exists(_chemin):
+            from Controleur.Statistiques import Statistiques
+            _statistiques = Statistiques()
+            _statistiques.SviderEtats(_garder_etat_initial)
             if _garder_etat_initial:
                 for _fichier in os.listdir(_chemin):
                     _acces = os.path.join(_chemin, _fichier)
@@ -335,9 +344,97 @@ class Singleton(object):
 
             # On efface le tampon
             shutil.rmtree(_chemin_tampon)
+
+            self.FMchargerStatistiques()
+
             return _nbr_importe, ""
         else:
             return 0, "Le dossier à importer n'existe pas"
+
+    def FMsauvegarderStatistiques(self, _statistiques):
+        """
+            <statistique>
+                <nbretats>
+                <etat>
+                    <niveau_de_batterie_moyen>
+                    </niveau_de_batterie_moyen>
+                    <nbr_actifs>
+                    </nbr_actifs>
+                </etat>
+                <etat>
+                    ...
+                </etat>
+                ...
+            </statistique>
+        """
+        _chemin = self.FM_chemin_local + "\\resultats simulation\\statistiques"
+        # La racine
+        _racine = Element("statistique")
+
+        _nbretats = SubElement(_racine, "nbretats")
+        _nbretats.text = str(_statistiques.S_nombre_etats)
+
+        for _etat in range(0, _statistiques.S_nombre_etats):
+            _e = SubElement(_racine, "etat")
+
+            SubElement(_e, "numero_etat").text = str(_etat)
+
+            if _etat not in _statistiques.S_niveau_de_batterie_moyen:
+                SubElement(_e, "niveau_de_batterie_moyen").text = str(0)
+            else:
+                SubElement(_e, "niveau_de_batterie_moyen").text = str(_statistiques.S_niveau_de_batterie_moyen[_etat])
+
+            if _etat not in _statistiques.S_niveau_de_batterie_moyen:
+                SubElement(_e, "nbr_actifs").text = str(0)
+            else:
+                SubElement(_e, "nbr_actifs").text = str(_statistiques.S_nbr_actifs[_etat])
+
+        # Deux lignes pour bien mettre en page l'xml
+        _xml = tostring(_racine, 'utf-8')
+        _xml = minidom.parseString(_xml).toprettyxml("  ")
+
+        with open(_chemin + ".xml", 'w') as f:
+            f.write(_xml)
+
+    def FMchargerStatistiques(self):
+        """
+            <statistique>
+                <nbretats>
+                <etat>
+                    <niveau_de_batterie_moyen>
+                    </niveau_de_batterie_moyen>
+                    <nbr_actifs>
+                    </nbr_actifs>
+                </etat>
+                <etat>
+                    ...
+                </etat>
+                ...
+            </statistique>
+        """
+
+        _chemin = self.FM_chemin_local + "\\resultats simulation\\statistiques.xml"
+
+        if os.path.exists(_chemin):
+            from Controleur.Statistiques import Statistiques
+            _statistiques = Statistiques()
+
+            _racine = parse(_chemin)
+
+            # Récupération des noeuds
+            for _etat in _racine.iter("etat"):
+                _netat = int(next(_etat.iter("numero_etat")).text)
+                _niveau_batterie_moyen = int(next(_etat.iter("niveau_de_batterie_moyen")).text)
+                _nbr_actifs = int(next(_etat.iter("nbr_actifs")).text)
+
+                _statistiques.SajouterDonneesBrutes(_niveau_batterie_moyen, _nbr_actifs)
+
+            # Test si le nombre de noeuds détecté et celui donné correspondent
+            _nbr_etats = int(next(_racine.iter("nbretats")).text)
+            if _statistiques.S_nombre_etats != _nbr_etats:
+                from Controleur.ReseauControleur import ReseauControleur
+                ReseauControleur.RCmessageInformation("Le nombre d'état en meta et réél ne correspondent pas. Chargement "
+                                                      "des informations statistiques échoué")
 
 
 class FileManager(Singleton):

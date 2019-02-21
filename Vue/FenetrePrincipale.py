@@ -2,6 +2,7 @@ from PyQt5 import QtWidgets
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtCore import QUrl, pyqtSignal
 
+from Controleur.Statistiques import Statistiques
 from Modele.Signaux import Signaux
 from Utilitaires.FileManager import FileManager
 from Vue import fenetreprincipaledesign_ui
@@ -54,19 +55,19 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
         _file_manager = FileManager()
         _liste_etats = _file_manager.FMlisterEtats()
         if len(_liste_etats) > 0:
-            self.FP_total = _liste_etats[-1]
+            self.FP_total = len(_liste_etats)
             self.FP_selection = _liste_etats[0]
 
         self.FPuptdateLabelSelection(self.FP_selection, self.FP_total)
         self.FPD_barre_temporelle.valueChanged.connect(self.FPactionBarreTemporelle)
-
-        self.FPafficherReseau()
 
     def FPafficherReseau(self):
         """
         Affiche dans la section didiée de la fenêtre le reseau enregistré en local
 
         """
+        _statistiques = Statistiques()
+        self.FPD_aire_informations.setText(_statistiques.SgenererTexte(self.FP_selection))
 
         _fileManager = FileManager()
         _chemin = _fileManager.FMchargerHTMLEtat(self.FP_selection)

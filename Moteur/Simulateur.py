@@ -2,23 +2,24 @@ import networkx as nx
 import math
 from networkx.algorithms.approximation import dominating_set
 from networkx.algorithms.shortest_paths.generic import shortest_path
+
 from Modele.Roles import Roles
 from Modele.Signaux import Signaux
 from Utilitaires.FileManager import FileManager
 
 
 class Simulateur:
+    S_intervalle_recolte = 1
+    S_intervalle_roulement = -1
+    S_unite_consommation_emission = 5
+    S_unite_consommation_reception = 5
+    S_unite_consommation_recolte = 1
+    S_duree_de_vie = 0
+    S_fin_de_vie = 0.2
 
     def __init__(self, _connecteur):
         super(Simulateur, self).__init__()
         self.S_connecteur = _connecteur
-        self.S_intervalle_recolte = 1
-        self.S_intervalle_roulement = -1
-        self.S_unite_consommation_emission = 5
-        self.S_unite_consommation_reception = 5
-        self.S_unite_consommation_recolte = 1
-        self.S_duree_de_vie = 0
-        self.S_fin_de_vie = 0.8
 
     def SlancerSimulation(self, _reseau):
         self.__SdeterminationIntervalleTemps()
@@ -26,15 +27,16 @@ class Simulateur:
         _etat, _total = 0, 0
         _reseau = self.SconfigurationTopologique(_reseau)
 
-        _fin_de_vie_atteinte, _e = self._SfinDeVieAtteinte(_reseau)
+        _fin_de_vie_atteinte, _e = self.SfinDeVieAtteinte(_reseau)
+
+        _file_manager = FileManager()
 
         while not _fin_de_vie_atteinte:
             _reseau = self.__SsimulationSurUnRoulement(_reseau)
 
-            _file_manager = FileManager()
             _etat, _total = _file_manager.FMenregistrerEtat(_reseau)
 
-            _fin_de_vie_atteinte, _e = self._SfinDeVieAtteinte(_reseau)
+            _fin_de_vie_atteinte, _e = self.SfinDeVieAtteinte(_reseau)
             # self.S_connecteur.emit(Signaux._NOUVEL_ETAT, dict({"etat":_etat, "total": _total}))
 
         self.S_connecteur.emit(Signaux._NOUVEL_ETAT, dict({"etat": _etat, "total": _total}))
@@ -48,7 +50,7 @@ class Simulateur:
         # Déyermination des rôles des capteurs en prenant en compte uniquement l'ensemble dominant
         # TODO Sprint 3 : Prendre en compte le niveau restant de la batterie
 
-        _ensemble_dominant = Simulateur.__SdeterminationEnsembleDominant(_reseau)
+        _ensemble_dominant = Simulateur.SdeterminationEnsembleDominant(_reseau)
         _reseau.R_ensemble_dominant = _ensemble_dominant
         # Tous les noeuds de l'ensemble dominant prennent le rôle de Recepteur/Emetteur
         # Les autres prennent le rôle d'Émetteur
@@ -71,7 +73,7 @@ class Simulateur:
         return _reseau
 
     @staticmethod
-    def __SdeterminationEnsembleDominant(_reseau):
+    def SdeterminationEnsembleDominant(_reseau):
 
         # Sélection des noeuds dominants
         _reseau = Simulateur.__SactualisationPoids(_reseau)
@@ -348,19 +350,21 @@ class Simulateur:
 
         return _reseau
 
-    def _SfinDeVieAtteinte(self, _reseau):
+    @staticmethod
+    def SfinDeVieAtteinte(_reseau):
         # Pour chaque noeud, suivre la chaine de routage qui le lie au puit. Si la chaîne est brisée décompter ce noeud
         _noeuds_deconnectes = []
         _fin_de_vie_atteinte = False
 
         for _noeud in _reseau.R_graphe.nodes():
-            _, _noeuds_deconnectes = self.__Sparcourt(_noeud, _reseau, _noeuds_deconnectes)
+            _, _noeuds_deconnectes = Simulateur.Sparcourt(_noeud, _reseau, _noeuds_deconnectes)
 
-            if len(_noeuds_deconnectes) / (_reseau.R_nbr_noeuds - 1) >= self.S_fin_de_vie:
+            if len(_noeuds_deconnectes) / (_reseau.R_nbr_noeuds - 1) >= Simulateur.S_fin_de_vie:
                 _fin_de_vie_atteinte = True
         return _fin_de_vie_atteinte, _noeuds_deconnectes
 
-    def __Sparcourt(self, _noeud, _reseau, _noeuds_deconnectes):
+    @staticmethod
+    def Sparcourt(_noeud, _reseau, _noeuds_deconnectes):
 
         if _reseau.R_graphe.nodes()[_noeud]["role"] == Roles._PUIT:
             return False, _noeuds_deconnectes
@@ -374,9 +378,9 @@ class Simulateur:
                 return True, _noeuds_deconnectes
 
             else:
-                _chaine_brisee, _noeuds_deconnectes = self.__Sparcourt(_reseau.R_graphe.nodes()[_noeud]["route"],
-                                                                       _reseau,
-                                                                       _noeuds_deconnectes)
+                _chaine_brisee, _noeuds_deconnectes = Simulateur.Sparcourt(_reseau.R_graphe.nodes()[_noeud]["route"],
+                                                                           _reseau,
+                                                                           _noeuds_deconnectes)
                 if _chaine_brisee:
                     _noeuds_deconnectes.append(_noeud)
                     return True, _noeuds_deconnectes

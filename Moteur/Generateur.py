@@ -463,7 +463,7 @@ class Generateur:
 
         from Moteur.Simulateur import Simulateur
         _simulateur = Simulateur(None)
-        _, _ensemble_deconnecte = _simulateur._SfinDeVieAtteinte(_reseau)
+        _, _ensemble_deconnecte = _simulateur.SfinDeVieAtteinte(_reseau)
 
         colors = []
         colors_dominant = []

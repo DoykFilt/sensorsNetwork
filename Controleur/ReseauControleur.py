@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QWidget, QMessageBox, QFileDialog
 from PyQt5 import QtCore
 
+from Controleur.Statistiques import Statistiques
 from Moteur.Simulateur import Simulateur
 from Utilitaires.FileManager import FileManager
 from Modele.Reseau import Reseau
@@ -117,6 +118,10 @@ class ReseauControleur(QWidget):
         self.RC_worker = None
         self.RC_resultat = None
 
+        _file_manager = FileManager()
+        _file_manager.FMchargerStatistiques()
+        self.RC_fen_principale.FPafficherReseau()
+
     def RCactionSignalFenetrePrincipale(self, _signal, _saut=0):
         """
             Analyse le signal émit par la fenêtre principale et agit en conséquent
@@ -181,8 +186,8 @@ class ReseauControleur(QWidget):
                 _options = QFileDialog.Options()
                 _options |= QFileDialog.DontUseNativeDialog
                 _options |= QFileDialog.ShowDirsOnly
-                _filename = QFileDialog.getExistingDirectory(self, "Spécifier l'endroit où exporter l'ensemble des données", "",
-                                                                options=_options)
+                _filename = QFileDialog.getExistingDirectory(self, "Spécifier l'endroit où exporter l'ensemble des "
+                                                                   "données", "", options=_options)
 
                 _done, _message = _file_manager.FMexporterResultat(_filename)
 
