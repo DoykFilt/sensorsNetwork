@@ -26,7 +26,7 @@ class FenetreCreation(QtWidgets.QMainWindow, fenetrecreationdesign_ui.Ui_MainWin
     __FCD_NBR_CAPTEURS_MAX = None  # Définit dans l'init, dépend de la largeur
 
     __FCD_CAPACITE_BATTERIE_MIN = 1
-    __FCD_CAPACITE_BATTERIE_MAX = 150
+    __FCD_CAPACITE_BATTERIE_MAX = 1000
 
     __FCD_LARGEUR_MIN = 10
     __FCD_LARGEUR_MAX = 500

@@ -1,9 +1,7 @@
-
-# TODO : Pour chaque Etat afficher le niveau moyen de batterie, le ratio actifs/inactifs
-# TODO : Graphique constant, nombre de capteurs en fin de vie par rapport au temps écoulé
 from Modele.Roles import Roles
 from Moteur.Simulateur import Simulateur
 from Utilitaires.FileManager import FileManager
+
 
 class Singleton:
 
@@ -22,6 +20,8 @@ class Singleton:
             self.S_nombre_etats = 0
             self.S_niveau_de_batterie_moyen = dict()
             self.S_nbr_actifs = dict()
+            self.S_resultats = []
+
             self.__initialized = True
 
     def SgenererTexte(self, _etat):
@@ -69,15 +69,31 @@ class Singleton:
             self.S_nombre_etats = 1
             self.S_niveau_de_batterie_moyen = dict({0: self.S_niveau_de_batterie_moyen[0]})
             self.S_nbr_actifs = dict({0: self.S_nbr_actifs[0]})
+            self.S_resultats = [self.S_resultats[0]]
         else:
             self.S_nombre_etats = 0
             self.S_niveau_de_batterie_moyen = dict()
             self.S_nbr_actifs = dict()
+        self.S_resultats = []
 
-    # TODO : enregistrer les stats en local et les faire suivre lors de l'import/export
+    def SajouterResultat(self, _intervalle, _duree_de_vie):
+        _resultat = dict({"intervalle": _intervalle, "duree": _duree_de_vie})
+        self.S_resultats.append(_resultat)
 
-    def SgenererGraphiqueFinDeVie(self):
-        pass
+    def SgenererDonneesGraphiques(self):
+
+        _graphique1 = dict({"x": [], "y": []})
+        _graphique2 = dict({"x": [], "y": []})
+
+        for _resultat in self.S_resultats:
+            _graphique1["x"].append(_resultat["duree"])
+            _graphique1["y"].append(_resultat["intervalle"])
+
+        for _etat in range(0, self.S_nombre_etats):
+            _graphique2["x"].append(self.S_nbr_actifs[_etat] * Simulateur.S_intervalle_recolte)
+            _graphique2["y"].append(_etat)
+
+        return _graphique1, _graphique2
 
 
 class Statistiques(Singleton):

@@ -1,7 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QMessageBox, QFileDialog
 from PyQt5 import QtCore
 
-from Controleur.Statistiques import Statistiques
 from Moteur.Simulateur import Simulateur
 from Utilitaires.FileManager import FileManager
 from Modele.Reseau import Reseau

@@ -10,26 +10,29 @@ from Utilitaires.FileManager import FileManager
 
 class Simulateur:
     S_intervalle_recolte = 1
-    S_intervalle_roulement = -1
+    S_intervalle_roulement = 0
     S_unite_consommation_emission = 5
     S_unite_consommation_reception = 5
     S_unite_consommation_recolte = 1
     S_duree_de_vie = 0
-    S_fin_de_vie = 0.2
+    S_fin_de_vie = 0.8
 
     def __init__(self, _connecteur):
         super(Simulateur, self).__init__()
         self.S_connecteur = _connecteur
 
     def SlancerSimulation(self, _reseau):
+
+        _file_manager = FileManager()
+
+        # Sprint 2 : correspond à l'équivalent pour un cycle
         self.__SdeterminationIntervalleTemps()
 
         _etat, _total = 0, 0
         _reseau = self.SconfigurationTopologique(_reseau)
 
         _fin_de_vie_atteinte, _e = self.SfinDeVieAtteinte(_reseau)
-
-        _file_manager = FileManager()
+        self.S_duree_de_vie = 0
 
         while not _fin_de_vie_atteinte:
             _reseau = self.__SsimulationSurUnRoulement(_reseau)
@@ -37,13 +40,16 @@ class Simulateur:
             _etat, _total = _file_manager.FMenregistrerEtat(_reseau)
 
             _fin_de_vie_atteinte, _e = self.SfinDeVieAtteinte(_reseau)
-            # self.S_connecteur.emit(Signaux._NOUVEL_ETAT, dict({"etat":_etat, "total": _total}))
+
+        from Controleur.Statistiques import Statistiques
+        _statistiques = Statistiques()
+        _statistiques.SajouterResultat(self.S_intervalle_roulement, self.S_duree_de_vie)
 
         self.S_connecteur.emit(Signaux._NOUVEL_ETAT, dict({"etat": _etat, "total": _total}))
         return _reseau
 
     def __SdeterminationIntervalleTemps(self):
-        self.S_intervalle_roulement = -1
+        self.S_intervalle_roulement = 0
 
     @staticmethod
     def SconfigurationTopologique(_reseau):
@@ -299,6 +305,8 @@ class Simulateur:
     def __SsimulationSurUnRoulement(self, _reseau):
         # Sprint 2 : utiliser _intervalle_récolte en lieu et place de intervalle_roulement
         # TODO Sprint 3 : utiliser intervalle_roulement
+        self.S_duree_de_vie += self.S_intervalle_roulement
+
         self.S_duree_de_vie += self.S_intervalle_recolte
         self.__Sconsommation(_reseau)
         return _reseau

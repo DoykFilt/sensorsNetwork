@@ -355,16 +355,25 @@ class Singleton(object):
         """
             <statistique>
                 <nbretats>
-                <etat>
-                    <niveau_de_batterie_moyen>
-                    </niveau_de_batterie_moyen>
-                    <nbr_actifs>
-                    </nbr_actifs>
-                </etat>
-                <etat>
+                <nbrresultats>
+                <etats>
+                    <etat>
+                        <niveau_de_batterie_moyen>
+                        </niveau_de_batterie_moyen>
+                        <nbr_actifs>
+                        </nbr_actifs>
+                    </etat>
+                    <etat>
+                        ...
+                    </etat>
                     ...
-                </etat>
-                ...
+                </etats>
+                <resultats>
+                    <resultat>
+                        <intervalle></intervalle>
+                        <dureedevie></dureedevie>
+                    </resultat>
+                <resultats>
             </statistique>
         """
         _chemin = self.FM_chemin_local + "\\resultats simulation\\statistiques"
@@ -374,8 +383,9 @@ class Singleton(object):
         _nbretats = SubElement(_racine, "nbretats")
         _nbretats.text = str(_statistiques.S_nombre_etats)
 
+        _etats = SubElement(_racine, "etats")
         for _etat in range(0, _statistiques.S_nombre_etats):
-            _e = SubElement(_racine, "etat")
+            _e = SubElement(_etats, "etat")
 
             SubElement(_e, "numero_etat").text = str(_etat)
 
@@ -389,6 +399,16 @@ class Singleton(object):
             else:
                 SubElement(_e, "nbr_actifs").text = str(_statistiques.S_nbr_actifs[_etat])
 
+        _nbrresultats = SubElement(_racine, "nbrresultats")
+        _nbrresultats.text = str(len(_statistiques.S_resultats))
+
+        _resultats = SubElement(_racine, "resultats")
+        for _resultat in _statistiques.S_resultats:
+            _r = SubElement(_resultats, "resultat")
+
+            SubElement(_r, "intervalle").text = str(_resultat["intervalle"])
+            SubElement(_r, "duree").text = str(_resultat["duree"])
+
         # Deux lignes pour bien mettre en page l'xml
         _xml = tostring(_racine, 'utf-8')
         _xml = minidom.parseString(_xml).toprettyxml("  ")
@@ -400,16 +420,25 @@ class Singleton(object):
         """
             <statistique>
                 <nbretats>
-                <etat>
-                    <niveau_de_batterie_moyen>
-                    </niveau_de_batterie_moyen>
-                    <nbr_actifs>
-                    </nbr_actifs>
-                </etat>
-                <etat>
+                <nbrresultats>
+                <etats>
+                    <etat>
+                        <niveau_de_batterie_moyen>
+                        </niveau_de_batterie_moyen>
+                        <nbr_actifs>
+                        </nbr_actifs>
+                    </etat>
+                    <etat>
+                        ...
+                    </etat>
                     ...
-                </etat>
-                ...
+                </etats>
+                <resultats>
+                    <resultat>
+                        <intervalle></intervalle>
+                        <dureedevie></dureedevie>
+                    </resultat>
+                <resultats>
             </statistique>
         """
 
@@ -429,12 +458,25 @@ class Singleton(object):
 
                 _statistiques.SajouterDonneesBrutes(_niveau_batterie_moyen, _nbr_actifs)
 
+            for _resultat in _racine.iter("resultat"):
+                _intervalle = int(next(_resultat.iter("intervalle")).text)
+                _dureedevie = int(next(_resultat.iter("duree")).text)
+
+                _statistiques.SajouterResultat(_intervalle, _dureedevie)
+
             # Test si le nombre de noeuds détecté et celui donné correspondent
             _nbr_etats = int(next(_racine.iter("nbretats")).text)
             if _statistiques.S_nombre_etats != _nbr_etats:
                 from Controleur.ReseauControleur import ReseauControleur
-                ReseauControleur.RCmessageInformation("Le nombre d'état en meta et réél ne correspondent pas. Chargement "
-                                                      "des informations statistiques échoué")
+                ReseauControleur.RCmessageInformation("Le nombre d'état en meta et réél ne correspondent pas. "
+                                                      "Chargement des informations statistiques échoué")
+
+            # Test si le nombre de noeuds détecté et celui donné correspondent
+            _nbr_resultats = int(next(_racine.iter("nbrresultats")).text)
+            if len(_statistiques.S_resultats) != _nbr_resultats:
+                from Controleur.ReseauControleur import ReseauControleur
+                ReseauControleur.RCmessageInformation("Le nombre de résultats en meta et réél ne correspondent pas. "
+                                                      "Chargement des informations statistiques échoué")
 
 
 class FileManager(Singleton):

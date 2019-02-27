@@ -1,3 +1,4 @@
+import mplcursors as mplcursors
 from PyQt5 import QtWidgets
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtCore import QUrl, pyqtSignal
@@ -6,6 +7,14 @@ from Controleur.Statistiques import Statistiques
 from Modele.Signaux import Signaux
 from Utilitaires.FileManager import FileManager
 from Vue import fenetreprincipaledesign_ui
+
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from matplotlib.widgets import Cursor
+
+import matplotlib.pyplot as plt
+import scipy.spatial as spatial
+import numpy as np
 
 
 class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_MainWindow):
@@ -61,6 +70,45 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
         self.FPuptdateLabelSelection(self.FP_selection, self.FP_total)
         self.FPD_barre_temporelle.valueChanged.connect(self.FPactionBarreTemporelle)
 
+        # Pour ajouter les graphics matplotlib
+        self._figure_graphique1 = Figure()
+        self._canvas_graphique1 = FigureCanvas(self._figure_graphique1)
+        self.FPD_layout_graphiques.addWidget(self._canvas_graphique1)
+
+        self._figure_graphique2 = Figure()
+        self._canvas_graphique2 = FigureCanvas(self._figure_graphique2)
+        self.FPD_layout_graphiques.addWidget(self._canvas_graphique2)
+
+        self.FPplotGraphiques()
+
+    def FPplotGraphiques(self):
+
+        _statistiques = Statistiques()
+        _donnees_graphique1, _donnees_graphique2 = _statistiques.SgenererDonneesGraphiques()
+
+        # Graphique 1
+        ax = self._figure_graphique1.add_subplot(111)
+        ax.clear()
+        lines = ax.plot(_donnees_graphique1["y"], _donnees_graphique1["x"], 'o')
+        ax.set_xlabel("Intervalle de temps entre les changements de rôle")
+        ax.set_ylabel("Durée de vie du réseau")
+        ax.set_title("Durée de vie du réseau")
+        ax.set_aspect("auto")
+        mplcursors.cursor(lines, hover=True)
+        self._figure_graphique1.tight_layout()
+        self._canvas_graphique1.draw()
+
+        # Graphique 2
+        ax = self._figure_graphique2.add_subplot(111)
+        ax.clear()
+        lines = ax.plot(_donnees_graphique2["y"], _donnees_graphique2["x"], 'o')
+        ax.set_xlabel("Durée de la simulation en unité de temps")
+        ax.set_ylabel("Nombre de capteurs connectés")
+        ax.set_title("Capteurs connectés à la passerelle")
+        mplcursors.cursor(lines, hover=True)
+        self._figure_graphique2.tight_layout()
+        self._canvas_graphique2.draw()
+
     def FPafficherReseau(self):
         """
         Affiche dans la section didiée de la fenêtre le reseau enregistré en local
@@ -76,6 +124,7 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
         self.FP_view.load(local_url)
         self.FPD_layout_gauche_haut.addWidget(self.FP_view)
 
+        self.FPplotGraphiques()
 
     def FPobtenirConnecteur(self):
         """
