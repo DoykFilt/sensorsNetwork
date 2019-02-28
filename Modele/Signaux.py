@@ -36,4 +36,7 @@ class Signaux(Enum):
 
     # Signaux émis lors de la simulation
     _NOUVEL_ETAT = 4
+    _INITIALISATION_SIMULATION = 4.1
+    _AVANCEE_SIMULATION = 4.2
+    _FIN_SIMULATION = 4.3
 

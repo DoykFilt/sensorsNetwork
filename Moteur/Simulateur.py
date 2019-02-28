@@ -1,3 +1,5 @@
+import time
+
 import networkx as nx
 import math
 from networkx.algorithms.approximation import dominating_set
@@ -52,26 +54,48 @@ class Simulateur:
         # TODO Sprint 3 : Ajouter une boucle afin de récupérer l'intervalle de temps avec lequel la durée de vie est
         #  maximale
 
+        # Chrono pour savoir combien de temps la simulation a durée
+        _start = time.localtime(time.time())[5]
+
         _file_manager = FileManager()
+        _numero_essai = 0
+        self.S_connecteur.emit(Signaux._INITIALISATION_SIMULATION, dict())
 
         # Détermination de l'intervalle de temps
         self.__SdeterminationIntervalleTemps()
+
+        _text_progression = "Simulation en cours.. " \
+                            "\nEssai " + str(_numero_essai) + \
+                            "\nintervalle utilisé : " + str(self.S_intervalle_roulement) + " unité(s) de temps"
+        self.S_connecteur.emit(Signaux._AVANCEE_SIMULATION, dict({"avancee": 0,
+                                                                         "text": _text_progression}))
+
         # Initialisation des numéro d'état
         _etat, _total = 0, 0
         # Configuration topologique du réseau (routage et ensemble dominant)
         _reseau = self.SconfigurationTopologique(_reseau)
 
-        _fin_de_vie_atteinte, _ = self.SfinDeVieAtteinte(_reseau)
+        _fin_de_vie_atteinte, _capteurs_deconnectes = self.SfinDeVieAtteinte(_reseau)
         self.S_duree_de_vie = 0
 
         # Tant que la fin de vie du réseau n'a pas été atteinte, on simule consommation énergétique en enregistrant
         # les étapes intermédiaires
         while not _fin_de_vie_atteinte:
+
+            _pourcentage_connection = len(_capteurs_deconnectes) / (_reseau.R_nbr_noeuds - 1) * 100
+
+            self.S_connecteur.emit(Signaux._AVANCEE_SIMULATION, dict({"avancee": _pourcentage_connection,
+                                                                             "text": _text_progression}))
+
             _reseau = self.__SsimulationSurUnRoulement(_reseau)
 
             _etat, _total = _file_manager.FMenregistrerEtat(_reseau)
 
-            _fin_de_vie_atteinte, _ = self.SfinDeVieAtteinte(_reseau)
+            _fin_de_vie_atteinte, _capteurs_deconnectes = self.SfinDeVieAtteinte(_reseau)
+
+        self.S_connecteur.emit(Signaux._AVANCEE_SIMULATION, dict({"avancee": 100,
+                                                                         "text": _text_progression}))
+        _numero_essai += 1
 
         # Une fois la durée de vie du réseau atteinte, plus qu'à ajouter le résultat aux statistiques
         from Controleur.Statistiques import Statistiques
@@ -80,6 +104,9 @@ class Simulateur:
         _file_manager.FMsauvegarderStatistiques()
 
         self.S_connecteur.emit(Signaux._NOUVEL_ETAT, dict({"etat": _etat, "total": _total}))
+
+        _end = time.localtime(time.time())[5]
+        self.S_connecteur.emit(Signaux._FIN_SIMULATION, dict({"duree": (_end - _start)}))
         return _reseau
 
     def __SdeterminationIntervalleTemps(self):
@@ -295,7 +322,6 @@ class Simulateur:
         :param _reseau: Reseau, le réseau à configurer
         :return: Reseau, le réseau configuré
         """
-        # TODO Sprint 3 : Vérifier la pertinence de la perte de donnée pendant le passage de noeuds vers arcs
         _datas = {}
         for _edge in _graphe.edges():
             _poids_arc = _graphe.node[_edge[0]]['poids_dominant'] + _graphe.node[_edge[1]]['poids_dominant']
@@ -453,7 +479,8 @@ class Simulateur:
             utilisé.
 
         :param _reseau: Reseau, le réseau à traiter
-        :return: Reseau, le réseau traité
+        :return:    boolean, vrai si la fin de vie du réseau a été atteinte
+                    int[], liste des noeuds déconnectés
         """
         # Pour chaque noeud, suivre la chaine de routage qui le lie au puit. Si la chaîne est brisée décompter ce noeud
         _noeuds_deconnectes = []

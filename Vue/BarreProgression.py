@@ -1,5 +1,3 @@
-import time
-
 from PyQt5.QtWidgets import QProgressDialog
 from PyQt5 import QtCore
 

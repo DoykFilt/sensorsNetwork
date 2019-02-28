@@ -113,6 +113,7 @@ class ReseauControleur(QWidget):
         self.RC_fen_creation.FCobtenirConnecteur().connect(self.RCactionSignalFenetreCreation)
 
         self.RC_barre_progression_creation = None
+        self.RC_barre_progression_simulation = None
         self.RC_thread = QtCore.QThread()
         self.RC_worker = None
         self.RC_resultat = None
@@ -284,6 +285,15 @@ class ReseauControleur(QWidget):
         if _signal == Signaux._NOUVEL_ETAT:
             self.RC_fen_principale.FPuptdateLabelSelection(_datas["etat"], _datas["total"])
             self.RC_fen_principale.FPafficherReseau()
+        elif _signal == Signaux._INITIALISATION_SIMULATION:
+            self.RC_barre_progression_simulation = BarreProgression()
+        elif _signal == Signaux._AVANCEE_SIMULATION:
+            self.RC_barre_progression_simulation.BPchangementValeur(_datas["avancee"])
+            self.RC_barre_progression_simulation.BPchangementLabel(_datas["text"])
+        elif _signal == Signaux._FIN_SIMULATION and self.RC_barre_progression_simulation is not None:
+            # on met à 100% et on ferme la fenêtre
+            self.RC_barre_progression_simulation.BPfin()
+            self.RCmessageInformation("Simulation terminée, temps d'exécution : " + str(_datas["duree"]) + " secondes")
 
     def RCactionSignalFenetreCreation(self, _signal, _params=None):
         """
@@ -293,7 +303,6 @@ class ReseauControleur(QWidget):
             :param _params: Les paramètres envoyé dans le cas d'un signal de validation
 
         """
-
         if _signal == Signaux._ANNULER_PARAMETRES:
             self.RC_fen_creation.close()
         elif _signal == Signaux._VALIDER_PARAMETRES and _params is not None:
