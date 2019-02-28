@@ -2,9 +2,9 @@ from Modele.Noeud import Noeud
 from Modele.Roles import Roles
 
 
-class Puit(Noeud):
+class Passerelle(Noeud):
     """
-        class Puit
+        class Passerelle
 
         Hérite de Noeud, élément de base d'un graphe
 

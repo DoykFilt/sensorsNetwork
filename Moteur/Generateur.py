@@ -23,6 +23,11 @@ class Generateur:
     """
 
     def __init__(self, _connecteur):
+        """
+            Initialisateur de la classe
+
+        :param _connecteur: pyqtSignal, connecteur qui permet d'informer le controleur de l'avancement de la génération
+        """
         super(Generateur, self).__init__()
         self.G_connecteur = _connecteur
 
@@ -52,15 +57,15 @@ class Generateur:
 
         # Génération des positions des capteurs
         self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 5, "Génération des positions initiales..", -1)
-        _pos = Generateur.__GgenererPositions(_params.P_nbr_capteurs,
-                                              _params.P_max_size,
-                                              _params.P_marge,
-                                              _params.P_min_distance)
+        _pos = Generateur.GgenererPositions(_params.P_nbr_capteurs,
+                                            _params.P_max_size,
+                                            _params.P_marge,
+                                            _params.P_min_distance)
         self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 10, "Positions générées", -1)
 
         # Création du graphe
         self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 10, "Génération de la topologie du réseau..", -1)
-        _graphe = Generateur.__GgenerationReseau(_params.P_nbr_capteurs, _pos, _params.P_max_distance)
+        _graphe = Generateur.GgenerationReseau(_params.P_nbr_capteurs, _pos, _params.P_max_distance)
         self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 15, "Topologie générée..", -1)
 
         # Réagencement du graphe en un graphe connexe
@@ -68,7 +73,7 @@ class Generateur:
 
         # Assignation des paramètres
         self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 100, "Mise en place des paramètres réseaux..", -1)
-        _reseau.R_graphe = self.__GparametrageReseau(_reseau.R_graphe, _params)
+        _reseau.R_graphe = self.GparametrageReseau(_reseau.R_graphe, _params)
 
         from Moteur.Simulateur import Simulateur
         Simulateur.SconfigurationTopologique(_reseau)
@@ -78,7 +83,7 @@ class Generateur:
         return _reseau
 
     @staticmethod
-    def __GparametrageReseau(_graphe, _params):
+    def GparametrageReseau(_graphe, _params):
         """
         Permet de placer les paramètres de rôle et niveau de batterie dans les noeuds.
         Le premier noeud correspond au puit
@@ -89,7 +94,7 @@ class Generateur:
 
         """
 
-        # Paramètre rôle : Puit, Emetteur/Recepteur, Emetteur
+        # Paramètre rôle : Passerelle, Emetteur/Recepteur, Emetteur
         _roles = {i: Roles._EMETTEUR_RECEPTEUR for i in range(0, _params.P_nbr_capteurs)}
         _roles[0] = Roles._PUIT
         # Niveau initiale de batterie
@@ -105,7 +110,7 @@ class Generateur:
         return _graphe
 
     @staticmethod
-    def __GgenererPositions(_nbr_noeuds, _max_size, _marge, _min_distance):
+    def GgenererPositions(_nbr_noeuds, _max_size, _marge, _min_distance):
         """
         Fonction qui génèe les positions des noeuds afin qu'ils soient mieux reparti
         Elle découpe en aires rectangulaires les surfaces non occupées par les noeuds en prenant en compte la distance
@@ -180,7 +185,7 @@ class Generateur:
         return _pos
 
     @staticmethod
-    def __GafficherPositions(_pos, _max_size, _min_distance):
+    def GafficherPositions(_pos, _max_size, _min_distance):
         """
         Fonction permet de visualiser sur une fenêtre matplotlib la disposition d'un nuage de point avec un cercle par
         point qui correspond à la distance minimum que doivent avoir les noeuds entre eux
@@ -359,7 +364,7 @@ class Generateur:
                                _y + _vecteur[1])
 
             # Finalement Recalcule du graphe et de ses sous-graphes
-            _graphe = Generateur.__GgenerationReseau(_nbr_noeuds_graphe, _pos, _max_distance)
+            _graphe = Generateur.GgenerationReseau(_nbr_noeuds_graphe, _pos, _max_distance)
 
             _subgraphs_generator = nx.connected_component_subgraphs(_graphe, copy=True)
             _count = 0
@@ -383,7 +388,7 @@ class Generateur:
         return _graphe
 
     @staticmethod
-    def __GgenerationReseau(_nbr_noeuds, _pos, _max_distance):
+    def GgenerationReseau(_nbr_noeuds, _pos, _max_distance):
 
         """
         Génère le réseau à partir d'une liste de positions des noeuds
@@ -421,13 +426,15 @@ class Generateur:
         Génère un réseau à partir d'une liste de capteurs et d'arcs
 
         :param _capteurs : liste d'objets de type Noeud
-        :param _arcs : liste de tuples (arc1, arc2)
+        :param _arcs : liste de tuples de type Arc
 
         :return Un graphe networkX
         """
 
         _nbr_noeuds_graphe = 0
         _graphe = nx.Graph()
+
+        # Capteurs
         for _count in range(0, len(_capteurs)):
             if _capteurs[_count].N_role == Roles._PUIT:
                 _graphe.add_node(_count,
@@ -443,6 +450,7 @@ class Generateur:
                                  route=_capteurs[_count].N_route)
             _nbr_noeuds_graphe += 1
 
+        # Arcs
         for _arc in _arcs:
             _graphe.add_edge(_arc.A_noeud1,
                              _arc.A_noeud2,
@@ -456,17 +464,30 @@ class Generateur:
 
         Algorithme tiré de l'exemple : https://plot.ly/python/network-graphs/
 
+
+        L'affichage est décomposée. Ainsi les arcs sont affichés en deux parties : les dominants et les non dominants,
+        de même que les noeuds qui sont affichés en trois parties : les dominants, les non dominants et les déconnectés
+
+
         :param _reseau : Objet de type Reseau
 
         :return l'HTML dans une chaîne de caractère
         """
 
+        # Récupération, pour commencer, l'ensemble des noeuds déconnectés
         from Moteur.Simulateur import Simulateur
         _simulateur = Simulateur(None)
         _, _ensemble_deconnecte = _simulateur.SfinDeVieAtteinte(_reseau)
 
+        # ==============================================================================================================
+        # Paramétrage des arcs
+        # ==============================================================================================================
+
         colors = []
         colors_dominant = []
+        # Choix des couleurs en premier.
+        # Les arcs de l'ensemble dominant sont rouges, les autres bleus clairs
+        # Les arcs déconnectés de l'ensemble dominant sont noirs, les autres gris
         for _edge in _reseau.R_graphe.edges():
             if _edge in _reseau.R_ensemble_dominant.edges():
                 if _edge[0] in _ensemble_deconnecte or _edge[1] in _ensemble_deconnecte:
@@ -480,12 +501,14 @@ class Generateur:
                     colors.append("#A9D0F5")
         _arcs = []
         _arcs_dominants = []
+        # Décomposition des arcs en deux partis, ceux de l'ensemble dominant et les autres
         for _arc in _reseau.R_graphe.edges():
             if _arc in _reseau.R_ensemble_dominant.edges():
                 _arcs_dominants.append(_arc)
             else:
                 _arcs.append(_arc)
 
+        # Données des arcs non dominants à afficher
         edge_trace = [dict(
             type='scatter',
             x=[_reseau.R_graphe.node[edge[0]]['pos'][0], _reseau.R_graphe.node[edge[1]]['pos'][0]],
@@ -494,6 +517,7 @@ class Generateur:
             line=dict(width=2, color=colors[c]))
             for c, edge in enumerate(_arcs)]
 
+        # Données des arcs dominants à afficher
         edge_trace_dominant = [dict(
             type='scatter',
             x=[_reseau.R_graphe.node[edge[0]]['pos'][0], _reseau.R_graphe.node[edge[1]]['pos'][0]],
@@ -502,9 +526,14 @@ class Generateur:
             line=dict(width=2, color=colors_dominant[c]))
             for c, edge in enumerate(_arcs_dominants)]
 
+        # ==============================================================================================================
+        # Paramétrage des noeuds
+        # ==============================================================================================================
+
         _nodes_pos = []
         _nodes_pos_dominant = []
         _nodes_pos_deconnectes = []
+        # Décomposition des arcs en trois parties, les noeuds dominants, les déconnectés et le reste
         for _noeud in _reseau.R_graphe.nodes():
             if _noeud in _ensemble_deconnecte:
                 _nodes_pos_deconnectes.append([_reseau.R_graphe.node[_noeud]['pos'][0],
@@ -518,6 +547,7 @@ class Generateur:
         _nodes_pos_dominant = numpy.array(_nodes_pos_dominant)
         _nodes_pos_deconnectes = numpy.array(_nodes_pos_deconnectes)
 
+        # Données des noeuds à afficher
         _x, _y = [], []
         for _pos in _nodes_pos:
             _x.append(_pos[0])
@@ -547,6 +577,7 @@ class Generateur:
                                   titleside='right'
                               )))
 
+        # Données des noeuds dominants à afficher
         _x, _y = [], []
         for _pos in _nodes_pos_dominant:
             _x.append(_pos[0])
@@ -577,6 +608,7 @@ class Generateur:
                                        ),
                                        line=dict(width=2, color="red")))
 
+        # Données des noeuds déconnectés à afficher
         _x, _y = [], []
         for _pos in _nodes_pos_deconnectes:
             _x.append(_pos[0])
@@ -602,18 +634,22 @@ class Generateur:
         else:
             node_trace_deconnecte = []
 
+        # Si il n'y a pas de données à afficher dans les noeuds, l'échelle de couleurs ne s'affiche pas.
+        # On fait donc en sorte que l'échelle des noeuds dominants s'affiche à la place.
         if len(_nodes_pos) == 0:
             node_trace_dominant["marker"]["showscale"] = True
 
-        # Ajout des informations pour l'affichage d'informations supplémentaires :
-        #   - couleur des noeuds en fonction de leur niveau d'énergie
-        #   - information des noeuds au passage de la souris
+        # Ajout des informations pour l'affichage d'informations supplémentaires
+        # - Le texte qui s'affiche au survole d'un noeud avec la souris
+        # - la couleur du noeud
         for node, adjacencies in enumerate(_reseau.R_graphe.adjacency()):
             # Le puit est dessiné en violet et les capteurs en nuance de couleur en fonction du niveau de leur batterie
             # Sont affichés au passage de la souris :
             #   - Le rôle du noeud (puit, émetteur/récepteur, émetteur)
-            #   - l'énergie restante (si ce n'est pas un puit)
-            #   - le nombre de capteurs adjacent
+            #   - Le prochain noeud vers lequel envoyer les données
+            #   - l'énergie restante (si ce n'est pas un puit, si c'est le cas sa couleur est mise en violet). Si il
+            #       n'a plus d'énergie, sa couleur est mise en noir
+            #   - le nombre de capteurs adjacent (si c'est le puit)
 
             node_info = "Capteur n°" + str(node) + " | Emetteur/Récepteur | " + \
                         "Energie restante : " + str(_reseau.R_graphe.node[node]['batterie']) + " | " + \
@@ -628,7 +664,7 @@ class Generateur:
             elif node in _reseau.R_ensemble_dominant:
                 if _reseau.R_graphe.node[node]['role'] == Roles._PUIT:
                     node_trace_dominant['marker']['color'] += tuple(['purple'])
-                    node_info = "Puit | " + str(len(adjacencies[1])) + " capteurs adjacents"
+                    node_info = "Passerelle | " + str(len(adjacencies[1])) + " capteurs adjacents"
                 else:
                     node_trace_dominant['marker']['color'] += tuple([_reseau.R_graphe.node[node]['batterie']])
                 node_trace_dominant['text'] += tuple([node_info])
@@ -636,6 +672,7 @@ class Generateur:
                 node_trace['marker']['color'] += tuple([_reseau.R_graphe.node[node]['batterie']])
                 node_trace['text'] += tuple([node_info])
 
+        # On concatène l'ensemble des données, arcs et noeuds, à afficher. L'affiche est supperposé de gauche à droite
         if len(_nodes_pos_deconnectes) > 0:
             _datas = edge_trace + [node_trace] + edge_trace_dominant + [node_trace_deconnecte] + [node_trace_dominant]
         else:
@@ -657,7 +694,7 @@ class Generateur:
                             xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                             yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
 
-        # Finalement génération du html
+        # Pour finir génération du html
         html = plotly.offline.plot(fig, auto_open=False, output_type='div')
         return """<html><head><meta charset="utf-8" /></head><body><script type="text/javascript">window.PlotlyConfig = 
                     {MathJaxConfig: 'local'};</script>""" \

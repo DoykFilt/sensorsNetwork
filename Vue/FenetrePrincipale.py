@@ -10,11 +10,6 @@ from Vue import fenetreprincipaledesign_ui
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from matplotlib.widgets import Cursor
-
-import matplotlib.pyplot as plt
-import scipy.spatial as spatial
-import numpy as np
 
 
 class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_MainWindow):
@@ -59,6 +54,8 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
         self.FPD_boutton_saut_arriere.clicked.connect(self.FPactionSautArriere)
         self.FPD_boutton_saut_avant.clicked.connect(self.FPactionSautAvant)
 
+        # Pour gérer la sélection du résultat de la simulation. Si il y a déja un résultat de simulation on affiche
+        # le dernier
         self.FP_selection = 0
         self.FP_total = 0
         _file_manager = FileManager()
@@ -70,44 +67,14 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
         self.FPuptdateLabelSelection(self.FP_selection, self.FP_total)
         self.FPD_barre_temporelle.valueChanged.connect(self.FPactionBarreTemporelle)
 
-        # Pour ajouter les graphics matplotlib
-        self._figure_graphique1 = Figure()
-        self._canvas_graphique1 = FigureCanvas(self._figure_graphique1)
-        self.FPD_layout_graphiques.addWidget(self._canvas_graphique1)
+        # Pour ajouter les deux graphiques matplotlib
+        self.FP_figure_graphique1 = Figure()
+        self.FP_canvas_graphique1 = FigureCanvas(self.FP_figure_graphique1)
+        self.FPD_layout_graphiques.addWidget(self.FP_canvas_graphique1)
 
-        self._figure_graphique2 = Figure()
-        self._canvas_graphique2 = FigureCanvas(self._figure_graphique2)
-        self.FPD_layout_graphiques.addWidget(self._canvas_graphique2)
-
-        self.FPplotGraphiques()
-
-    def FPplotGraphiques(self):
-
-        _statistiques = Statistiques()
-        _donnees_graphique1, _donnees_graphique2 = _statistiques.SgenererDonneesGraphiques()
-
-        # Graphique 1
-        ax = self._figure_graphique1.add_subplot(111)
-        ax.clear()
-        lines = ax.plot(_donnees_graphique1["y"], _donnees_graphique1["x"], 'o')
-        ax.set_xlabel("Intervalle de temps entre les changements de rôle")
-        ax.set_ylabel("Durée de vie du réseau")
-        ax.set_title("Durée de vie du réseau")
-        ax.set_aspect("auto")
-        mplcursors.cursor(lines, hover=True)
-        self._figure_graphique1.tight_layout()
-        self._canvas_graphique1.draw()
-
-        # Graphique 2
-        ax = self._figure_graphique2.add_subplot(111)
-        ax.clear()
-        lines = ax.plot(_donnees_graphique2["y"], _donnees_graphique2["x"], 'o')
-        ax.set_xlabel("Durée de la simulation en unité de temps")
-        ax.set_ylabel("Nombre de capteurs connectés")
-        ax.set_title("Capteurs connectés à la passerelle")
-        mplcursors.cursor(lines, hover=True)
-        self._figure_graphique2.tight_layout()
-        self._canvas_graphique2.draw()
+        self.FP_figure_graphique2 = Figure()
+        self.FP_canvas_graphique2 = FigureCanvas(self.FP_figure_graphique2)
+        self.FPD_layout_graphiques.addWidget(self.FP_canvas_graphique2)
 
     def FPafficherReseau(self):
         """
@@ -124,7 +91,42 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
         self.FP_view.load(local_url)
         self.FPD_layout_gauche_haut.addWidget(self.FP_view)
 
-        self.FPplotGraphiques()
+        self.FPafficherGraphiques()
+
+    def FPafficherGraphiques(self):
+        """
+        Affiche dans la section didiée de la fenêtre les deux graphiques
+        Premier graphique (le plus en haut) : La durée de vie du réseau en fonction de l'intervalle de changement de
+        rôle utilisé
+        Second graphique : Le nombre de capteurs connectés à la passerelle en fonction du temps
+        Les données sont affichées sous forme de points, les valeurs s'affichent au passage de la souris
+        """
+
+        _statistiques = Statistiques()
+        _donnees_graphique1, _donnees_graphique2 = _statistiques.SgenererDonneesGraphiques()
+
+        # Graphique 1
+        _ax = self.FP_figure_graphique1.add_subplot(111)
+        _ax.clear()
+        _lignes = _ax.plot(_donnees_graphique1["y"], _donnees_graphique1["x"], 'o')
+        _ax.set_xlabel("Intervalle de temps entre les changements de rôle")
+        _ax.set_ylabel("Durée de vie du réseau")
+        _ax.set_title("Durée de vie du réseau")
+        _ax.set_aspect("auto")
+        mplcursors.cursor(_lignes, hover=True)
+        self.FP_figure_graphique1.tight_layout()
+        self.FP_canvas_graphique1.draw()
+
+        # Graphique 2
+        _ax = self.FP_figure_graphique2.add_subplot(111)
+        _ax.clear()
+        _lines = _ax.plot(_donnees_graphique2["y"], _donnees_graphique2["x"], 'o')
+        _ax.set_xlabel("Durée de la simulation en unité de temps")
+        _ax.set_ylabel("Nombre de capteurs connectés")
+        _ax.set_title("Capteurs connectés à la passerelle")
+        mplcursors.cursor(_lines, hover=True)
+        self.FP_figure_graphique2.tight_layout()
+        self.FP_canvas_graphique2.draw()
 
     def FPobtenirConnecteur(self):
         """
@@ -156,9 +158,17 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
         self.FP_connecteur.emit(Signaux._EXPORTER_XML, -1)
 
     def FPactionImporterSimulation(self):
+        """
+        Emission du signal quand importer un résultat de simulation est choisi dans le menu
+
+        """
         self.FP_connecteur.emit(Signaux._IMPORTER_RESULTAT, -1)
 
     def FPactionExporterSimulation(self):
+        """
+        Emission du signal quand exporter un résultat de simulation est choisi dans le menu
+
+        """
         self.FP_connecteur.emit(Signaux._EXPORTER_RESULTAT, -1)
 
     def FPactionSimulation(self):
@@ -169,21 +179,49 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
         self.FP_connecteur.emit(Signaux._LANCER_SIMULATION, -1)
 
     def FPactionArriere(self):
+        """
+        Emission du signal quand le bouton "gauche" à côté de la glissière est cliqué
+
+        """
         self.FP_connecteur.emit(Signaux._ARRIERE, -1)
 
     def FPactionSautArriere(self):
+        """
+        Emission du signal quand le bouton "extrème gauche" à côté de la glissière est cliqué
+
+        """
         self.FP_connecteur.emit(Signaux._SAUT_ARRIERE, -1)
 
     def FPactionAvant(self):
+        """
+        Emission du signal quand le bouton "gauche" à côté de la glissière est cliqué
+
+        """
         self.FP_connecteur.emit(Signaux._AVANT, -1)
 
     def FPactionSautAvant(self):
+        """
+        Emission du signal quand le bouton "extrème droite" à côté de la glissière est cliqué
+
+        """
         self.FP_connecteur.emit(Signaux._SAUT_AVANT, -1)
 
     def FPactionBarreTemporelle(self):
+        """
+        Emission du signal quand la glissière est utilisée
+
+        """
         self.FP_connecteur.emit(Signaux._SAUT_TEMPOREL, self.FPD_barre_temporelle.value())
 
     def FPuptdateLabelSelection(self, _selection, _total):
+        """
+        Permet de mettre à jour les valeurs affichées du nombre total d'états dans lequel le réseau est passé ainsi
+        que l'état actuellement affiché
+
+        :param _selection : entier, la sélection actuelle
+        :param _total : entier, le nombre d'états
+
+        """
         if _selection > _total:
             self.FPD_selection_barre_temporelle.setText("Values error")
         else:

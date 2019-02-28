@@ -3,7 +3,11 @@ from enum import Enum
 
 class Signaux(Enum):
     """
-        Enumération qui liste les différents signaux du projet
+        Enumération qui liste les différents signaux du projet, elle inclue :
+        - La liste des signaux émis lors d'une action de l'utilisateur sur la fenêtre principale
+        - La liste des signaux émis lors d'une action de l'utilisateur sur la fenêtre de paramétrage lors de la création
+        - La liste des signaux émis lors de la création d'un réseau
+        - La liste des signaux émis lors de la simulation d'un réseau
 
     """
 
@@ -26,7 +30,7 @@ class Signaux(Enum):
     _AVANCEE_CREATION_GRAPHE = 2.2
     _FIN_CREATION_GRAPHE = 2.3
 
-    # Signaux émis par la fenêtre de paramétrage des créations de graphe
+    # Signaux émis par la fenêtre de paramétrage des créations d'un réseau
     _ANNULER_PARAMETRES = 3
     _VALIDER_PARAMETRES = 3.1
 

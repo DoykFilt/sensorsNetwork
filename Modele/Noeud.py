@@ -15,6 +15,7 @@ class Noeud:
 
             :param _pos : tuple de float (x, y)
             :param _role : Enum Role
+            :param _route : int le numéro du noeud vers lequel envoyer les données
 
         """
         self.N_pos = _pos

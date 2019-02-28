@@ -78,7 +78,6 @@ class ThreadSimulation(QtCore.QObject):
     def run(self):
         """
             Execute la simulation du réseau et emet les signaux en conséquent
-
         """
 
         self.TS_simulateur.SlancerSimulation(self.TS_reseau)
@@ -89,7 +88,8 @@ class ReseauControleur(QWidget):
     """
         class Simulateur
 
-        Controleur qui le lien entre le modèle et la vue. Il gère toutes les intéractons avec les fenêtres
+        Controleur qui le lien entre le modèle et la vue. Il gère toutes les intéractons avec les fenêtres et permet
+        de lancer la génération d'un réseau ainsi que la simulation
 
     """
 
@@ -126,6 +126,8 @@ class ReseauControleur(QWidget):
             Analyse le signal émit par la fenêtre principale et agit en conséquent
 
             :param _signal : Le signal de type Signals à analyser
+            :param _saut : entier utilisé uniquement dans le cas d'un changement de valeur non incrémentale du choix de
+            l'état à afficher
 
         """
 
@@ -156,7 +158,7 @@ class ReseauControleur(QWidget):
 
         # Cas de demande d'importation depuis un fichier XML
         if _signal == Signaux._CHARGER_XML:
-            # try:
+            try:
                 # Ouvre une boite de dialogue qui demande à l'utilisateur le fichier XML contenant le réseau
                 _options = QFileDialog.Options()
                 _options |= QFileDialog.DontUseNativeDialog
@@ -172,9 +174,10 @@ class ReseauControleur(QWidget):
                         ReseauControleur.RCmessageInformation("Le réseau a été importé avec succès !")
                         self.RC_fen_principale.FPuptdateLabelSelection(0, 1)
                         self.RC_fen_principale.FPafficherReseau()
-            # except Exception as _e:
-            #     ReseauControleur.RCmessageErreur("Erreur lors du chargement du fichier : " + str(_e))
+            except Exception as _e:
+                ReseauControleur.RCmessageErreur("Erreur lors du chargement du fichier : " + str(_e))
 
+        # Cas de demande d'exportation du résultat de la simulation
         if _signal == Signaux._EXPORTER_RESULTAT:
             _file_manager = FileManager()
             if len(_file_manager.FMlisterEtats()) == 0:
@@ -195,13 +198,14 @@ class ReseauControleur(QWidget):
                 else:
                     ReseauControleur.RCmessageInformation("L'ensemble des fichiers a été exporté avec succès !")
 
+        # Cas de demande d'importation du résultat de la simulation
         if _signal == Signaux._IMPORTER_RESULTAT:
             # Ouvre une boite de dialogue qui demande à l'utilisateur l'endroit où se situe le dossier à importer
             _options = QFileDialog.Options()
             _options |= QFileDialog.DontUseNativeDialog
             _options |= QFileDialog.ShowDirsOnly
             _filename = QFileDialog.getExistingDirectory(self, "Sélectionner le dossier à importer", "",
-                                                            options=_options)
+                                                         options=_options)
             _file_manager = FileManager()
             _nbr_imported, _message = _file_manager.FMimporterResultat(_filename)
 
@@ -212,9 +216,12 @@ class ReseauControleur(QWidget):
                 self.RC_fen_principale.FPuptdateLabelSelection(0, _nbr_imported)
                 self.RC_fen_principale.FPafficherReseau()
 
+        # Cas de demande de lancement de la simulation
         if _signal == Signaux._LANCER_SIMULATION:
+            # TODO : Ajouter une fenêtre de paramétrage
             self.RClancerSimulation()
 
+        # Cas de la demande d'affichage de l'état précédent
         if _signal == Signaux._ARRIERE:
             if self.RC_fen_principale.FP_selection > 0:
                 self.RC_fen_principale.FPuptdateLabelSelection(self.RC_fen_principale.FP_selection - 1,
@@ -222,8 +229,10 @@ class ReseauControleur(QWidget):
                 self.RC_fen_principale.FPafficherReseau()
 
         if _signal == Signaux._SAUT_ARRIERE:
+            # TODO Sprint 3 : Permettre la navigation entre chaque changement de rôle
             pass
 
+        # Cas de la demande de l'affichage de l'état suivant
         if _signal == Signaux._AVANT:
             if self.RC_fen_principale.FP_selection < self.RC_fen_principale.FP_total - 1:
                 self.RC_fen_principale.FPuptdateLabelSelection(self.RC_fen_principale.FP_selection + 1,
@@ -231,13 +240,19 @@ class ReseauControleur(QWidget):
                 self.RC_fen_principale.FPafficherReseau()
 
         if _signal == Signaux._SAUT_AVANT:
+            # TODO Sprint 3 : Permettre la navigation entre chaque changement de rôle
             pass
 
+        # Cas de la demande de changement de valeur brusque de l'état affiché
         if _signal == Signaux._SAUT_TEMPOREL:
             self.RC_fen_principale.FPuptdateLabelSelection(_saut, self.RC_fen_principale.FP_total)
             self.RC_fen_principale.FPafficherReseau()
 
     def RClancerSimulation(self):
+        """
+            Lance, dans un thread, la simulation sur le réseau affiché et connecte ses signaux
+
+        """
 
         _file_manager = FileManager()
         _file_manager.FMviderEtats(_garder_etat_initial=True)
@@ -262,9 +277,11 @@ class ReseauControleur(QWidget):
     def RCactionSignalSimulateur(self, _signal, _datas):
         """
             Analyse le signal émit par le simulateur
+
+            :param _signal : Enum Signaux
+            :param _datas : Dict(String : Objet) Les données envoyé lors de l'émission du signal
         """
         if _signal == Signaux._NOUVEL_ETAT:
-
             self.RC_fen_principale.FPuptdateLabelSelection(_datas["etat"], _datas["total"])
             self.RC_fen_principale.FPafficherReseau()
 
@@ -331,10 +348,10 @@ class ReseauControleur(QWidget):
         if _signal == Signaux._INITIALISATION_CREATION_GRAPHE:
             # Création de la fenetre
             self.RC_barre_progression_creation = BarreProgression()
-            _log.info(_texte)
+            _log.Linfo(_texte)
         elif _signal == Signaux._INFORMATION_CREATION_GRAPHE:
             # informations
-            _log.info(_texte)
+            _log.Linfo(_texte)
         elif _signal == Signaux._AVANCEE_CREATION_GRAPHE and self.RC_barre_progression_creation is not None:
             # on modifie l'avancée et on ajoute le texte
             self.RC_barre_progression_creation.BPchangementValeur(_valeur)
@@ -342,10 +359,10 @@ class ReseauControleur(QWidget):
                 self.RC_barre_progression_creation.BPchangementLabel("Création du réseau en cours..")
             else:
                 self.RC_barre_progression_creation.BPchangementLabel("Création du réseau en cours..", _temps)
-            _log.info(_texte)
+            _log.Linfo(_texte)
         elif _signal == Signaux._FIN_CREATION_GRAPHE and self.RC_barre_progression_creation is not None:
             # on met à 100% et on ferme la fenêtre
-            _log.info("Réseau créé avec succès")
+            _log.Linfo("Réseau créé avec succès")
             self.RC_barre_progression_creation.BPfin()
 
     def RCactionSignalMoteurResultat(self, _reseau):
@@ -394,7 +411,7 @@ class ReseauControleur(QWidget):
 
         """
         _log = Log()
-        _log.error(_message_erreur)
+        _log.Lerror(_message_erreur)
 
         _boite = QMessageBox()
         _boite.setIcon(QMessageBox.Critical)
@@ -414,7 +431,7 @@ class ReseauControleur(QWidget):
 
         """
         _log = Log()
-        _log.info(_message_info)
+        _log.Linfo(_message_info)
 
         _boite = QMessageBox()
         _boite.setIcon(QMessageBox.Information)

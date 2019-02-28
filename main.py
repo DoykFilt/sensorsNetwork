@@ -14,14 +14,14 @@ def main():
     sys._excepthook = sys.excepthook
 
     def exception_hook(exctype, value, traceback):
-        _log.error(traceback)
+        _log.Lerror(traceback)
         sys._excepthook(exctype, value, traceback)
         sys.exit(1)
 
     sys.excepthook = exception_hook
     _app = QApplication(sys.argv)
 
-    _log.info("Démarrage de l'application")
+    _log.Linfo("Démarrage de l'application")
     # Les deux fenêtres à afficher et le controleur qui fait le lien entre les deux
     _fenetre_principale = FenetrePrincipale()
     _fenetre_principale.setWindowTitle("Simulateur de la consommation énergétique de réseaux de capteurs sans fils")

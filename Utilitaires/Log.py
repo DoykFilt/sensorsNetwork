@@ -50,14 +50,14 @@ class Singleton(object):
             # stream_handler.setLevel(logging.DEBUG)
             # self.L_logger.addHandler(stream_handler)
 
-    def info(self, _texte):
+    def Linfo(self, _texte):
         """
             Permet d'écrire un log de type info
             :param : _texte str
         """
         self.L_logger.info(_texte)
 
-    def error(self, _texte):
+    def Lerror(self, _texte):
         """
             Permet d'écrire un log de type error
             :param : _texte str

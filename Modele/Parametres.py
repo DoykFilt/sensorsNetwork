@@ -1,5 +1,6 @@
 
 
+# TODO : Faire hériter d'une classe Parametres deux filles : ParametresCreation et ParametresSimulation
 class Parametres:
     """
         class Parametres

@@ -20,6 +20,11 @@ class Reseau:
         self.R_ensemble_dominant = None
 
     def RensembleFeuilles(self):
+        """
+        Liste les noeuds qui sont rattachés à l'ensemble dominant, cad les noeuds dont le rôle est simple émetteur
+
+        :return Liste d'entier : liste des noeuds qui n'appartiennent pas à l'ensemble dominant
+        """
         _feuilles = []
         for _noeud in self.R_graphe.nodes():
             if _noeud not in self.R_ensemble_dominant:

@@ -8,7 +8,7 @@ import networkx as nx
 
 from Modele.Arc import Arc
 from Modele.Capteur import Capteur
-from Modele.Puit import Puit
+from Modele.Passerelle import Passerelle
 from Modele.Roles import Roles
 from Moteur.Generateur import Generateur
 
@@ -19,7 +19,7 @@ class Singleton(object):
 
         Utilisée par la classe FileManager, permet de n'utiliser qu'une seule instance de la classe sur tout le projet
 
-        Cette classe permet de sauvegarder ou exporter un réseau en XML ou HTML
+        Cette classe permet de sauvegarder ou exporter un réseau, un résultat de simulation en XML ou HTML.
 
     """
 
@@ -173,7 +173,7 @@ class Singleton(object):
             _route = int(next(_noeud.iter("route")).text)
             _role = Roles(int(next(_noeud.iter("role")).text))
             if _role == Roles._PUIT:
-                _capteurs.append(Puit((_x, _y)))
+                _capteurs.append(Passerelle((_x, _y)))
             else:
                 _capteurs.append(Capteur((_x, _y), _batterie, _role, _route))
 
@@ -227,8 +227,17 @@ class Singleton(object):
         return _chemin
 
     def FMenregistrerEtat(self, _reseau):
+        """
 
-        # Le chemin
+            Permet de sauvegarder un état du réseau en local
+
+        :param _reseau: Reseau, reseau dont l'état est à enregistrer comme une nouvelle étape de la simulation
+
+        :return:    int, le numéro de l'état attribué
+                    int, le nombre total d'états
+        """
+
+        # Récopération du chemin, le nom se base sur le numéro de l'état
         _chemin = self.FM_chemin_local + "\\resultats simulation"
         _liste_etats = self.FMlisterEtats()
         if len(_liste_etats) == 0:
@@ -239,21 +248,30 @@ class Singleton(object):
         if not os.path.exists(_chemin):
             os.makedirs(_chemin)
 
-        # Enregistrement en XML
+        # Enregistrement au format XML
         self.FMsauvegarderReseauVersXML(_reseau, _fichier_etat)
 
-        # Enregistrement en HTML
+        # Enregistrement au format HTML
         with open(_fichier_etat + ".html", 'w') as f:
             f.write(Generateur.GgenerationHTML(_reseau))
 
+        # Récupération des données statistiques
         from Controleur.Statistiques import Statistiques
         _statistiques = Statistiques()
         _statistiques.SajouterDonnees(_reseau)
-        self.FMsauvegarderStatistiques(_statistiques)
+        self.FMsauvegarderStatistiques()
 
         return _numero_etat, len(_liste_etats) + 1
 
     def FMchargerEtat(self, _numero_etat):
+        """
+
+            Permet de charger un état en local
+
+        :param _numero_etat : int, le numéro de l'état à charger
+        :return: Reseau, le reseau à l'état chargé, None si inexistant
+
+        """
         _chemin = self.FM_chemin_local + "\\resultats simulation"
         _fichier_etat = _chemin + "\\etat" + str(_numero_etat) + ".xml"
         if not os.path.exists(_fichier_etat):
@@ -264,12 +282,24 @@ class Singleton(object):
             return _reseau
 
     def FMchargerHTMLEtat(self, _numero_etat):
+        """
+
+            Permet de récupérer le chemin vers le fichier HTML représentant l'état voulu
+
+        :param _numero_etat: int, le numéro de l'état à récupérer
+        :return: String, le chemin vers le fichier
+        """
         _chemin = self.FM_chemin_local + "\\resultats simulation" + "\\etat" + str(_numero_etat) + ".html"
         if not os.path.exists(_chemin):
             return self.FMobtenirCheminHTMLVide()
         return _chemin
 
     def FMviderEtats(self, _garder_etat_initial):
+        """
+            Permet de supprimer l'ensemble des fichiers sauvegardés en local
+
+        :param _garder_etat_initial: boolean, si vrai ne supprime pas les données relatives au premier etat
+        """
         _chemin = self.FM_chemin_local + "\\resultats simulation"
 
         if os.path.exists(_chemin):
@@ -289,6 +319,11 @@ class Singleton(object):
                 shutil.rmtree(_chemin)
 
     def FMlisterEtats(self):
+        """
+            Permet d'obtenir les numéros d'état déjà utilisés
+
+        :return: int[], ensemble des numéros d'état
+        """
         _numeros_etats = []
         _numero_etat = 0
         _chemin = self.FM_chemin_local + "\\resultats simulation"
@@ -300,6 +335,14 @@ class Singleton(object):
         return _numeros_etats
 
     def FMcopierDossier(self, _source, _destination):
+        """
+            Permet de copier un dossier d'un endroit vers un autre
+
+        :param _source: String, le chemin du dossier à déplacer
+        :param _destination: String, le chemin du dossier vers lequel déplacer le dossier
+        :return:    bool, vrai si déplacement effectué
+                    String, contient le message d'erreur si il y a lieu
+        """
 
         try:
             shutil.copytree(_source, _destination)
@@ -312,6 +355,13 @@ class Singleton(object):
         return True, ""
 
     def FMexporterResultat(self, _destination):
+        """
+            Permet d'exporter le résultat de la simulation
+
+        :param _destination: String, le chemin vers lequel copier les résultats
+        :return:    bool, vrai si déplacement effectué
+                    String, contient le message d'erreur si il y a lieu
+        """
 
         if os.path.exists(_destination):
             _destination += "\\copy resultats"
@@ -324,17 +374,34 @@ class Singleton(object):
             return False, "Aucun résultat à exporter"
 
     def FMimporterResultat(self, _source):
+        """
+            Permet d'importer un résultat
+
+        :param _source: String, le chemin où le dossier à importer est situé
+        :return:    bool, vrai si déplacement effectué
+                    String, contient le message d'erreur si il y a lieu
+        """
+
         if os.path.exists(_source):
+            # On copie les résultats déjà présents en local vers un dossier tempon. Cette sauvegarde est utilisé si la
+            # tentative de copie échoue
             _destination = self.FM_chemin_local + "\\resultats simulation"
             _chemin_tampon = self.FM_chemin_local + "\\resultats simulation(temp)"
             self.FMcopierDossier(_destination, _chemin_tampon)
 
             self.FMviderEtats(_garder_etat_initial=False)
 
-            self.FMcopierDossier(_source, _destination)
+            # Essaie de copier du dossier
+            _resultat, _erreur = self.FMcopierDossier(_source, _destination)
 
+            # Test du cas où la copie aurait échoué directement
+            if not _resultat:
+                self.FMviderEtats(_garder_etat_initial=False)
+                self.FMcopierDossier(_chemin_tampon, _destination)
+                return 0, "Erreur lors de la copie du dossier\n" + _erreur
+
+            # Test du cas où aucun état n'a pu être importé
             _nbr_importe = len(self.FMlisterEtats())
-
             if _nbr_importe == 0:
                 self.FMviderEtats(_garder_etat_initial=False)
                 # On remet le tampon
@@ -351,8 +418,12 @@ class Singleton(object):
         else:
             return 0, "Le dossier à importer n'existe pas"
 
-    def FMsauvegarderStatistiques(self, _statistiques):
+    def FMsauvegarderStatistiques(self):
         """
+            Permet de sauvegarder en local dans un fichier XML les informations contenues dans le singleton Statistique
+
+            Les données sont stockées sous la forme suivante :
+
             <statistique>
                 <nbretats>
                 <nbrresultats>
@@ -376,10 +447,14 @@ class Singleton(object):
                 <resultats>
             </statistique>
         """
+        from Controleur.Statistiques import Statistiques
+        _statistiques = Statistiques()
+
         _chemin = self.FM_chemin_local + "\\resultats simulation\\statistiques"
         # La racine
         _racine = Element("statistique")
 
+        # Sauvegarde des états
         _nbretats = SubElement(_racine, "nbretats")
         _nbretats.text = str(_statistiques.S_nombre_etats)
 
@@ -399,6 +474,7 @@ class Singleton(object):
             else:
                 SubElement(_e, "nbr_actifs").text = str(_statistiques.S_nbr_actifs[_etat])
 
+        # Sauvegarde des résultats
         _nbrresultats = SubElement(_racine, "nbrresultats")
         _nbrresultats.text = str(len(_statistiques.S_resultats))
 
@@ -418,6 +494,10 @@ class Singleton(object):
 
     def FMchargerStatistiques(self):
         """
+            Permet de charger en local depuis un fichier XML les informations contenues dans le singleton Statistique
+
+            Les données sont stockées sous la forme suivante :
+
             <statistique>
                 <nbretats>
                 <nbrresultats>
@@ -450,7 +530,7 @@ class Singleton(object):
 
             _racine = parse(_chemin)
 
-            # Récupération des noeuds
+            # Récupération des états
             for _etat in _racine.iter("etat"):
                 _netat = int(next(_etat.iter("numero_etat")).text)
                 _niveau_batterie_moyen = int(next(_etat.iter("niveau_de_batterie_moyen")).text)
@@ -458,20 +538,21 @@ class Singleton(object):
 
                 _statistiques.SajouterDonneesBrutes(_niveau_batterie_moyen, _nbr_actifs)
 
+            # Récupérations des résultats de performance de la simulation
             for _resultat in _racine.iter("resultat"):
                 _intervalle = int(next(_resultat.iter("intervalle")).text)
                 _dureedevie = int(next(_resultat.iter("duree")).text)
 
                 _statistiques.SajouterResultat(_intervalle, _dureedevie)
 
-            # Test si le nombre de noeuds détecté et celui donné correspondent
+            # Test si le nombre d'états détectés et celui donné correspondent
             _nbr_etats = int(next(_racine.iter("nbretats")).text)
             if _statistiques.S_nombre_etats != _nbr_etats:
                 from Controleur.ReseauControleur import ReseauControleur
                 ReseauControleur.RCmessageInformation("Le nombre d'état en meta et réél ne correspondent pas. "
                                                       "Chargement des informations statistiques échoué")
 
-            # Test si le nombre de noeuds détecté et celui donné correspondent
+            # Test si le nombre de résultats détecté et celui donné correspondent
             _nbr_resultats = int(next(_racine.iter("nbrresultats")).text)
             if len(_statistiques.S_resultats) != _nbr_resultats:
                 from Controleur.ReseauControleur import ReseauControleur

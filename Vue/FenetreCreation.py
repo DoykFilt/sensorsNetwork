@@ -228,4 +228,10 @@ class FenetreCreation(QtWidgets.QMainWindow, fenetrecreationdesign_ui.Ui_MainWin
 
     @staticmethod
     def FCobtenirCapaciteMaxBatterie():
+        """
+            Permet d'obtenir le choix de la capacité maximal de la batterie, utilisé sur l'affichage de l'échelle de
+            couleur pour l'affichage du réseau
+
+        :return: La capacité maximale
+        """
         return FenetreCreation.__FCD_CAPACITE_BATTERIE_MAX

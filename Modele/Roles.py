@@ -8,10 +8,17 @@ class Roles(Enum):
             - émetteur
             - émetteur / récepteur
 
+        ainsi que les rôles que peut avoir un arc :
+            - dominant (cad si il relie deux noeuds de l'ensemble dominant
+            - non dominant
+
     """
 
-    # surcharge de conversion en string, renvoit la valeur correspondante
     def __str__(self):
+        """
+        Surcharge de la conversion en string, renvoie la valeur correspondante
+        :return String, la valeur en chaîne de caractère
+        """
         return str(self.value)
 
     _PUIT = 0
