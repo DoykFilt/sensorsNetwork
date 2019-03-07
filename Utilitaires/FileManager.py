@@ -32,11 +32,11 @@ class Singleton(object):
             cls._instances[cls].__init__()
         return cls._instances[cls]
 
-    def __init__(self):
-        """
-            Constructeur de la classe, récupère le chemin absolu du dossier de sauvegarde local
-        """
-        self.FM_chemin_local = _path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..\\donnees\\reseau"))
+    FM_chemin_local = _path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..\\donnees\\reseau"))
+    # def __init__(self):
+    #     """
+    #         Constructeur de la classe, récupère le chemin absolu du dossier de sauvegarde local
+    #     """
 
     def FMsauvegarderReseauVersXML(self, _reseau, _chemin):
         """
@@ -49,7 +49,9 @@ class Singleton(object):
             <reseau>
                 <meta>
                     <nbrnoeuds>
-                    <nbrnoeuds>
+                    </nbrnoeuds>
+                    <capbatteriemax>
+                    </capbatteriemax>
                 </meta>
                 <graphe>
                     <noeuds>
@@ -82,6 +84,8 @@ class Singleton(object):
         _metadonnees = SubElement(_racine, "meta")
         _nbrnoeuds = SubElement(_metadonnees, "nbrnoeuds")
         _nbrnoeuds.text = str(_reseau.R_nbr_noeuds)
+        _capacite_batterie_max = SubElement(_metadonnees, "capbatteriemax")
+        _capacite_batterie_max.text = str(_reseau.R_capacite_batterie_max)
 
         # Le graphe
         _graphe = SubElement(_racine, "graphe")
@@ -130,7 +134,9 @@ class Singleton(object):
             <reseau>
                 <meta>
                     <nbrnoeuds>
-                    <nbrnoeuds>
+                    </nbrnoeuds>
+                    <capbatteriemax>
+                    </capbatteriemax>
                 </meta>
                 <graphe>
                     <noeuds>
@@ -157,8 +163,7 @@ class Singleton(object):
         """
         # Importation en local pour éviter les conflits
         from Controleur.ReseauControleur import ReseauControleur
-        #
-        # try:
+
         _capteurs = []
         _arcs = []
 
@@ -186,10 +191,9 @@ class Singleton(object):
 
         # Création du réseau
         _reseau = Generateur.GcreerReseauAvecCapteursEtArcs(_capteurs, _arcs)
-        #
-        # except:
-        #     ReseauControleur.RCmessageErreur("Le fichier est invalide ou corrompu")
-        #     return None
+
+        _capacite_batterie_max = float(next(_racine.iter("capbatteriemax")).text)
+        _reseau.R_capacite_batterie_max = _capacite_batterie_max
 
         # Test si le nombre de noeuds détecté et celui donné correspondent
         _nbr_noeuds = int(next(_racine.iter("nbrnoeuds")).text)
@@ -254,12 +258,6 @@ class Singleton(object):
         # Enregistrement au format HTML
         with open(_fichier_etat + ".html", 'w') as f:
             f.write(Generateur.GgenerationHTML(_reseau))
-
-        # Récupération des données statistiques
-        from Controleur.Statistiques import Statistiques
-        _statistiques = Statistiques()
-        _statistiques.SajouterDonnees(_reseau)
-        self.FMsauvegarderStatistiques()
 
         return _numero_etat, len(_liste_etats) + 1
 
@@ -418,7 +416,8 @@ class Singleton(object):
         else:
             return 0, "Le dossier à importer n'existe pas"
 
-    def FMsauvegarderStatistiques(self):
+    @staticmethod
+    def FMsauvegarderStatistiques():
         """
             Permet de sauvegarder en local dans un fichier XML les informations contenues dans le singleton Statistique
 
@@ -433,6 +432,8 @@ class Singleton(object):
                         </niveau_de_batterie_moyen>
                         <nbr_actifs>
                         </nbr_actifs>
+                        <informatif>
+                        </informatif>
                     </etat>
                     <etat>
                         ...
@@ -450,7 +451,7 @@ class Singleton(object):
         from Controleur.Statistiques import Statistiques
         _statistiques = Statistiques()
 
-        _chemin = self.FM_chemin_local + "\\resultats simulation\\statistiques"
+        _chemin = FileManager.FM_chemin_local + "\\resultats simulation\\statistiques"
         # La racine
         _racine = Element("statistique")
 
@@ -467,12 +468,14 @@ class Singleton(object):
             if _etat not in _statistiques.S_niveau_de_batterie_moyen:
                 SubElement(_e, "niveau_de_batterie_moyen").text = str(0)
             else:
-                SubElement(_e, "niveau_de_batterie_moyen").text = str(_statistiques.S_niveau_de_batterie_moyen[_etat])
+                SubElement(_e, "niveau_de_batterie_moyen").text = str(_statistiques.S_niveau_de_batterie_moyen[_etat]["data"])
 
             if _etat not in _statistiques.S_niveau_de_batterie_moyen:
                 SubElement(_e, "nbr_actifs").text = str(0)
             else:
-                SubElement(_e, "nbr_actifs").text = str(_statistiques.S_nbr_actifs[_etat])
+                SubElement(_e, "nbr_actifs").text = str(_statistiques.S_nbr_actifs[_etat]["data"])
+
+            SubElement(_e, "informatif").text = str(_statistiques.S_niveau_de_batterie_moyen[_etat]["informatif"])
 
         # Sauvegarde des résultats
         _nbrresultats = SubElement(_racine, "nbrresultats")
@@ -507,6 +510,8 @@ class Singleton(object):
                         </niveau_de_batterie_moyen>
                         <nbr_actifs>
                         </nbr_actifs>
+                        <informatif>
+                        </informatif>
                     </etat>
                     <etat>
                         ...
@@ -535,13 +540,14 @@ class Singleton(object):
                 _netat = int(next(_etat.iter("numero_etat")).text)
                 _niveau_batterie_moyen = int(next(_etat.iter("niveau_de_batterie_moyen")).text)
                 _nbr_actifs = int(next(_etat.iter("nbr_actifs")).text)
+                _informatif = int(next(_etat.iter("informatif")).text)
 
-                _statistiques.SajouterDonneesBrutes(_niveau_batterie_moyen, _nbr_actifs)
+                _statistiques.SajouterDonneesBrutes(_niveau_batterie_moyen, _nbr_actifs, _informatif)
 
             # Récupérations des résultats de performance de la simulation
             for _resultat in _racine.iter("resultat"):
-                _intervalle = int(next(_resultat.iter("intervalle")).text)
-                _dureedevie = int(next(_resultat.iter("duree")).text)
+                _intervalle = float(next(_resultat.iter("intervalle")).text)
+                _dureedevie = float(next(_resultat.iter("duree")).text)
 
                 _statistiques.SajouterResultat(_intervalle, _dureedevie)
 

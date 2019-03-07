@@ -18,6 +18,7 @@ class Reseau:
         self.R_nbr_noeuds = _nbr_noeuds
         self.R_graphe = _graphe
         self.R_ensemble_dominant = None
+        self.R_capacite_batterie_max = 0
 
     def RensembleFeuilles(self):
         """

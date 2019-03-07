@@ -87,8 +87,9 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
         _fileManager = FileManager()
         _chemin = _fileManager.FMchargerHTMLEtat(self.FP_selection)
 
-        local_url = QUrl.fromLocalFile(_chemin)
-        self.FP_view.load(local_url)
+        _qurl = QUrl()
+        _local_url = _qurl.fromLocalFile(_chemin)
+        self.FP_view.load(_local_url)
         self.FPD_layout_gauche_haut.addWidget(self.FP_view)
 
         self.FPafficherGraphiques()

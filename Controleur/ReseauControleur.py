@@ -34,7 +34,6 @@ class ThreadCreation(QtCore.QObject):
             :param _param : Parametre, pour la création du réseau
 
         """
-
         super().__init__()
         self.TC_moteur_reseau = Generateur(self.TC_connecteur)
         self.TC_param = _param
@@ -45,7 +44,20 @@ class ThreadCreation(QtCore.QObject):
 
         """
 
-        self.TC_resultat.emit(self.TC_moteur_reseau.GcreerReseau(self.TC_param))
+        _reseau = self.TC_moteur_reseau.GcreerReseau(self.TC_param)
+
+        # Enregistrement du réseau obtenu
+        _file_manager = FileManager()
+        _file_manager.FMviderEtats(_garder_etat_initial=False)
+        _file_manager.FMenregistrerEtat(_reseau=_reseau)
+
+        # Ajout des statistiques relevant de cet état initial
+        from Controleur.Statistiques import Statistiques
+        _statistiques = Statistiques()
+        _statistiques.SajouterDonnees(_reseau, _informatif=0)
+        _file_manager.FMsauvegarderStatistiques()
+
+        self.TC_resultat.emit(_reseau)
         self.TC_finished.emit()
 
 
@@ -67,7 +79,7 @@ class ThreadSimulation(QtCore.QObject):
         """
             Constructeur de la classe
 
-            :param _param : Parametre, pour la création du réseau
+            :param _reseau : Reseau, le réseau sur lequel appliquer la simulation
 
         """
 
@@ -84,7 +96,7 @@ class ThreadSimulation(QtCore.QObject):
         self.TS_finished.emit()
 
 
-class ReseauControleur(QWidget):
+class ReseauControleur:
     """
         class Simulateur
 
@@ -103,8 +115,6 @@ class ReseauControleur(QWidget):
             :param _fen_creation : La fenêtre de paramétrage FenetreCreation
 
         """
-
-        super(ReseauControleur, self).__init__()
 
         self.RC_fen_principale = _fen_principale
         self.RC_fen_creation = _fen_creation
@@ -251,7 +261,7 @@ class ReseauControleur(QWidget):
 
     def RClancerSimulation(self):
         """
-            Lance, dans un thread, la simulation sur le réseau affiché et connecte ses signaux
+            Démarre, dans un thread, la simulation sur le réseau affiché et connecte ses signaux
 
         """
 
@@ -281,18 +291,36 @@ class ReseauControleur(QWidget):
 
             :param _signal : Enum Signaux
             :param _datas : Dict(String : Objet) Les données envoyé lors de l'émission du signal
+
+            Associations :
+            Signaux._NOUVEL_ETAT => etat, total
+            Signaux._INITIALISATION_SIMULATION => None
+            Signaux._PROGRESSION_SIMULATION => avancee, text
+            Signaux._FIN_SIMULATION => duree
+
         """
+        # Cas où un nouvel état a été enregistré et est à afficher (généralement à la fin de la simulation et à chaque
+        # changement de rôle des capteurs
         if _signal == Signaux._NOUVEL_ETAT:
+            print(_datas["etat"])
+            print(_datas["total"])
             self.RC_fen_principale.FPuptdateLabelSelection(_datas["etat"], _datas["total"])
             self.RC_fen_principale.FPafficherReseau()
+
+        # Au début de la simulation, initilisation de la barre de progression
         elif _signal == Signaux._INITIALISATION_SIMULATION:
             self.RC_barre_progression_simulation = BarreProgression()
-        elif _signal == Signaux._AVANCEE_SIMULATION:
+
+        # Quand on veut modifier les valeurs de la barre de progression
+        elif _signal == Signaux._PROGRESSION_SIMULATION:
             self.RC_barre_progression_simulation.BPchangementValeur(_datas["avancee"])
             self.RC_barre_progression_simulation.BPchangementLabel(_datas["text"])
-        elif _signal == Signaux._FIN_SIMULATION and self.RC_barre_progression_simulation is not None:
-            # on met à 100% et on ferme la fenêtre
-            self.RC_barre_progression_simulation.BPfin()
+
+        # A la fin de la simulation
+        elif _signal == Signaux._FIN_SIMULATION :
+            if self.RC_barre_progression_simulation is not None:
+                # on met à 100% et on ferme la fenêtre
+                self.RC_barre_progression_simulation.BPfin()
             self.RCmessageInformation("Simulation terminée, temps d'exécution : " + str(_datas["duree"]) + " secondes")
 
     def RCactionSignalFenetreCreation(self, _signal, _params=None):
@@ -305,6 +333,7 @@ class ReseauControleur(QWidget):
         """
         if _signal == Signaux._ANNULER_PARAMETRES:
             self.RC_fen_creation.close()
+
         elif _signal == Signaux._VALIDER_PARAMETRES and _params is not None:
             self.RC_fen_creation.close()
             self.RCcreerReseau(_params)
@@ -324,23 +353,12 @@ class ReseauControleur(QWidget):
             self.RC_worker.TC_finished.connect(self.RC_thread.quit)
 
             self.RC_thread.started.connect(self.RC_worker.run)
-            self.RC_thread.finished.connect(self.RCupdateAffichage)
+            self.RC_thread.finished.connect(self.RC_fen_principale.FPafficherReseau)
 
             self.RC_worker.TC_connecteur.connect(self.RCactionSignalMoteur)
             self.RC_worker.TC_resultat.connect(self.RCactionSignalMoteurResultat)
 
             self.RC_thread.start()
-
-    def RCupdateAffichage(self):
-        """
-            Sauvegarde en local le réseau obtenu et l'affiche dans la fenêtre principale
-
-        """
-
-        if self.RC_worker is not None:
-            self.RC_worker.deleteLater()
-        if self.RC_resultat is not None:
-            self.RC_fen_principale.FPafficherReseau()
 
     def RCactionSignalMoteur(self, _signal, _valeur, _texte, _temps):
         """
@@ -354,13 +372,17 @@ class ReseauControleur(QWidget):
 
         """
         _log = Log()
+
+        # Création de la fenetre
         if _signal == Signaux._INITIALISATION_CREATION_GRAPHE:
-            # Création de la fenetre
             self.RC_barre_progression_creation = BarreProgression()
             _log.Linfo(_texte)
+
+        # Informations relatives à l'avancement
         elif _signal == Signaux._INFORMATION_CREATION_GRAPHE:
-            # informations
             _log.Linfo(_texte)
+
+        # Gestion de la barre de progression
         elif _signal == Signaux._AVANCEE_CREATION_GRAPHE and self.RC_barre_progression_creation is not None:
             # on modifie l'avancée et on ajoute le texte
             self.RC_barre_progression_creation.BPchangementValeur(_valeur)
@@ -369,6 +391,8 @@ class ReseauControleur(QWidget):
             else:
                 self.RC_barre_progression_creation.BPchangementLabel("Création du réseau en cours..", _temps)
             _log.Linfo(_texte)
+
+        # Fin de la création du graphe
         elif _signal == Signaux._FIN_CREATION_GRAPHE and self.RC_barre_progression_creation is not None:
             # on met à 100% et on ferme la fenêtre
             _log.Linfo("Réseau créé avec succès")
@@ -376,16 +400,15 @@ class ReseauControleur(QWidget):
 
     def RCactionSignalMoteurResultat(self, _reseau):
         """
-            Analyse le signal émit  à la fin de la création du réseau (Objet Generateur)
+            Récupère le réseau créé par le générateur
 
             :param _reseau : le résulat émit (Reseau)
 
         """
+
         self.RC_resultat = _reseau
-        _file_manager = FileManager()
-        _file_manager.FMviderEtats(_garder_etat_initial=False)
-        _file_manager.FMenregistrerEtat(_reseau=self.RC_resultat)
-        self.RC_fen_principale.FPuptdateLabelSelection(0, 1)
+
+        self.RC_fen_principale.FPuptdateLabelSelection(_selection=0, _total=1)
 
     def RCcontroleParametres(self, _param):
         """

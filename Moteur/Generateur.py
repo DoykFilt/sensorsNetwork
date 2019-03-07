@@ -74,6 +74,7 @@ class Generateur:
         # Assignation des paramètres
         self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 100, "Mise en place des paramètres réseaux..", -1)
         _reseau.R_graphe = self.GparametrageReseau(_reseau.R_graphe, _params)
+        _reseau.R_capacite_batterie_max = _params.P_capacitees_batteries
 
         from Moteur.Simulateur import Simulateur
         Simulateur.SconfigurationTopologique(_reseau)
@@ -485,28 +486,25 @@ class Generateur:
 
         colors = []
         colors_dominant = []
+        _arcs = []
+        _arcs_dominants = []
         # Choix des couleurs en premier.
         # Les arcs de l'ensemble dominant sont rouges, les autres bleus clairs
         # Les arcs déconnectés de l'ensemble dominant sont noirs, les autres gris
-        for _edge in _reseau.R_graphe.edges():
-            if _edge in _reseau.R_ensemble_dominant.edges():
-                if _edge[0] in _ensemble_deconnecte or _edge[1] in _ensemble_deconnecte:
+        # Auss idécomposition des arcs en deux partis, ceux de l'ensemble dominant et les autres
+        for _arc in _reseau.R_graphe.edges():
+            if _arc in _reseau.R_ensemble_dominant.edges():
+                _arcs_dominants.append(_arc)
+                if _arc[0] in _ensemble_deconnecte or _arc[1] in _ensemble_deconnecte:
                     colors_dominant.append("black")
                 else:
                     colors_dominant.append("red")
             else:
-                if _edge[0] in _ensemble_deconnecte or _edge[1] in _ensemble_deconnecte:
+                _arcs.append(_arc)
+                if _arc[0] in _ensemble_deconnecte or _arc[1] in _ensemble_deconnecte:
                     colors.append("gray")
                 else:
                     colors.append("#A9D0F5")
-        _arcs = []
-        _arcs_dominants = []
-        # Décomposition des arcs en deux partis, ceux de l'ensemble dominant et les autres
-        for _arc in _reseau.R_graphe.edges():
-            if _arc in _reseau.R_ensemble_dominant.edges():
-                _arcs_dominants.append(_arc)
-            else:
-                _arcs.append(_arc)
 
         # Données des arcs non dominants à afficher
         edge_trace = [dict(
@@ -696,6 +694,7 @@ class Generateur:
 
         # Pour finir génération du html
         html = plotly.offline.plot(fig, auto_open=False, output_type='div')
+
         return """<html><head><meta charset="utf-8" /></head><body><script type="text/javascript">window.PlotlyConfig = 
                     {MathJaxConfig: 'local'};</script>""" \
                + html \

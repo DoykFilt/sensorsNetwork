@@ -1,10 +1,12 @@
 import time
+import copy
 
 import networkx as nx
 import math
 from networkx.algorithms.approximation import dominating_set
 from networkx.algorithms.shortest_paths.generic import shortest_path
 
+from Modele.Reseau import Reseau
 from Modele.Roles import Roles
 from Modele.Signaux import Signaux
 from Utilitaires.FileManager import FileManager
@@ -25,15 +27,18 @@ class Simulateur:
     # Temps entre chaque changement de rôle
     S_intervalle_roulement = 0
     # Consommation énergétique d'une émission de données
-    S_unite_consommation_emission = 5
+    S_unite_consommation_emission = 0.05
     # Consommation énergétique d'une réception de données
-    S_unite_consommation_reception = 2.5
+    S_unite_consommation_reception = 0.025
     # Consommation énergétique d'une récolte de données
-    S_unite_consommation_recolte = 0.5
+    S_unite_consommation_recolte = 0.005
     # Pourcentage de réseaux connectés au puit à partir duquel on considère que la fin de vie du réseau est atteinte
     S_fin_de_vie = 0.8
     # Variable utilisée pour stocker la durée de vie du réseau
     S_duree_de_vie = 0
+    # Ratio qui détermine à partir de quand arrêter la simulation. Utilisé dans __SmaximumAtteint, si l'augmentation
+    # de durée de vie par rapport à la valeur précédente ne dépasse pas (S_performances x 100)% on arrête la simulation
+    S_performance = 0.1
 
     def __init__(self, _connecteur):
         """
@@ -43,6 +48,7 @@ class Simulateur:
         """
         super(Simulateur, self).__init__()
         self.S_connecteur = _connecteur
+        self.S_resultats = []
 
     def SlancerSimulation(self, _reseau):
         """
@@ -51,15 +57,23 @@ class Simulateur:
         :param _reseau: Reseau, le réseau à traiter
         :return: Reseau, le réseau une fois traité
         """
-        # TODO Sprint 3 : Ajouter une boucle afin de récupérer l'intervalle de temps avec lequel la durée de vie est
-        #  maximale
+
+        from Controleur.Statistiques import Statistiques
+        _statistiques = Statistiques()
 
         # Chrono pour savoir combien de temps la simulation a durée
         _start = time.localtime(time.time())[5]
 
         _file_manager = FileManager()
+
         _numero_essai = 0
+        _dernier_roulement = 0
+
+        # while not self.__SmaximumAtteint():
+
         self.S_connecteur.emit(Signaux._INITIALISATION_SIMULATION, dict())
+
+        _reseau_simulation = copy.deepcopy(_reseau)
 
         # Détermination de l'intervalle de temps
         self.__SdeterminationIntervalleTemps()
@@ -67,55 +81,102 @@ class Simulateur:
         _text_progression = "Simulation en cours.. " \
                             "\nEssai " + str(_numero_essai) + \
                             "\nintervalle utilisé : " + str(self.S_intervalle_roulement) + " unité(s) de temps"
-        self.S_connecteur.emit(Signaux._AVANCEE_SIMULATION, dict({"avancee": 0,
-                                                                         "text": _text_progression}))
+
+        self.S_connecteur.emit(Signaux._PROGRESSION_SIMULATION, dict({"avancee": 0,
+                                                                      "text": _text_progression}))
 
         # Initialisation des numéro d'état
-        _etat, _total = 0, 0
+        _etat, _total = 0, 1
         # Configuration topologique du réseau (routage et ensemble dominant)
-        _reseau = self.SconfigurationTopologique(_reseau)
+        _reseau_simulation = self.SconfigurationTopologique(_reseau_simulation)
 
-        _fin_de_vie_atteinte, _capteurs_deconnectes = self.SfinDeVieAtteinte(_reseau)
+        _fin_de_vie_atteinte, _capteurs_deconnectes = self.SfinDeVieAtteinte(_reseau_simulation)
         self.S_duree_de_vie = 0
 
         # Tant que la fin de vie du réseau n'a pas été atteinte, on simule consommation énergétique en enregistrant
         # les étapes intermédiaires
         while not _fin_de_vie_atteinte:
 
-            _pourcentage_connection = len(_capteurs_deconnectes) / (_reseau.R_nbr_noeuds - 1) * 100
+            _etat_informatif = -1
+            # Cas où le temps écoulé correspond à l'intervalle de temps de changement de rôles des capteurs.
+            if self.S_intervalle_roulement != 0 and \
+               (self.S_duree_de_vie == 0 or _dernier_roulement + self.S_intervalle_roulement <= self.S_duree_de_vie):
+                _dernier_roulement = self.S_duree_de_vie
+                _reseau_simulation = self.SconfigurationTopologique(_reseau_simulation)
+                _etat += 1
+                _total += 1
+                self.S_connecteur.emit(Signaux._NOUVEL_ETAT, dict({"etat": _etat, "total": _total}))
+                _file_manager.FMenregistrerEtat(_reseau_simulation)
+                _etat_informatif = _etat
 
-            self.S_connecteur.emit(Signaux._AVANCEE_SIMULATION, dict({"avancee": _pourcentage_connection,
-                                                                             "text": _text_progression}))
+            _reseau_simulation = self.__SsimulationSurUnRoulement(_reseau_simulation)
 
-            _reseau = self.__SsimulationSurUnRoulement(_reseau)
+            # Sauvegarde des stats de la simulation
+            # Récupération des données statistiques
+            _statistiques.SajouterDonnees(_reseau_simulation, _etat_informatif)
 
-            _etat, _total = _file_manager.FMenregistrerEtat(_reseau)
+            # La valeur de la barre de progression = niveau de batterie moyen / niveau de batterie initial
+            _niveau_de_batterie_moy = _statistiques.S_niveau_de_batterie_moyen[_statistiques.S_nombre_etats - 1]["data"]
+            _capacite_batterie_max = _reseau_simulation.R_capacite_batterie_max
+            _ratio = (1 - (_niveau_de_batterie_moy / _capacite_batterie_max))
 
-            _fin_de_vie_atteinte, _capteurs_deconnectes = self.SfinDeVieAtteinte(_reseau)
+            self.S_connecteur.emit(Signaux._PROGRESSION_SIMULATION, dict({"avancee": int(_ratio * 100),
+                                                                          "text": _text_progression}))
 
-        self.S_connecteur.emit(Signaux._AVANCEE_SIMULATION, dict({"avancee": 100,
-                                                                         "text": _text_progression}))
-        _numero_essai += 1
+            _fin_de_vie_atteinte, _capteurs_deconnectes = self.SfinDeVieAtteinte(_reseau_simulation)
+
+        # Ajout de l'état de la fin de vie du réseau
+        _etat += 1
+        _total += 1
+        self.S_connecteur.emit(Signaux._NOUVEL_ETAT, dict({"etat": _etat, "total": _total}))
+        _file_manager.FMenregistrerEtat(_reseau_simulation)
+        _statistiques.SajouterDonnees(_reseau_simulation, _etat)
+
+        # On met la barre de progression à 100%
+        self.S_connecteur.emit(Signaux._PROGRESSION_SIMULATION, dict({"avancee": 100, "text": _text_progression}))
 
         # Une fois la durée de vie du réseau atteinte, plus qu'à ajouter le résultat aux statistiques
-        from Controleur.Statistiques import Statistiques
-        _statistiques = Statistiques()
         _statistiques.SajouterResultat(self.S_intervalle_roulement, self.S_duree_de_vie)
-        _file_manager.FMsauvegarderStatistiques()
 
-        self.S_connecteur.emit(Signaux._NOUVEL_ETAT, dict({"etat": _etat, "total": _total}))
+        self.S_resultats.append(dict({"intervalle": self.S_intervalle_roulement, "resultat": self.S_duree_de_vie}))
+        _numero_essai += 1
+        _reseau_simulation = Reseau(_reseau)
+        # Fin while, cad fin de la simulation, le maximum a été trouvé
 
+        FileManager.FMsauvegarderStatistiques()
+
+        # Informations sur la durée de la simulation
         _end = time.localtime(time.time())[5]
         self.S_connecteur.emit(Signaux._FIN_SIMULATION, dict({"duree": (_end - _start)}))
-        return _reseau
+
+        return _reseau_simulation
+
+    def __SmaximumAtteint(self):
+        """
+            Permet de déterminer si la durée de vie maximale a été atteinte.
+            On estime que la durée maximale a été atteinte si la durée de vie est plus petite que la précédente ou si
+            l'augmentation de la durée de vie par rapport à la précédente ne dépasse pas un paramètre fixé S_performance
+        """
+
+        if len(self.S_resultats) > 1:
+            if self.S_resultats[-1]["resultat"] <= self.S_resultats[-2]["resultat"]:
+                return True
+            _ratio = self.S_resultats[-1]["resultat"] / self.S_resultats[-2]["resultat"]
+            if _ratio < self.S_performance:
+                return True
+
+        return False
 
     def __SdeterminationIntervalleTemps(self):
         """
             Permet de déterminer l'intervalle de changement de rôle des capteurs en fonction du précédent et du résultat
-            de la précédente simulation
+            de la précédente simulation.
+            L'intervalle est égal à la moitié de sa précédente valeur
         """
-        # TODO : Sprint 3
-        self.S_intervalle_roulement = 0
+        if self.S_intervalle_roulement == 0:
+            self.S_intervalle_roulement = self.S_duree_de_vie / 2
+        else:
+            self.S_intervalle_roulement /= 2
 
     @staticmethod
     def SconfigurationTopologique(_reseau):
@@ -168,7 +229,7 @@ class Simulateur:
         # On ajoute le ou les puits à l'ensemble dominant si ils n'y sont pas
         for _noeud in _reseau.R_graphe:
             if _reseau.R_graphe.node[_noeud]['role'] == Roles._PUIT and _noeud not in _ensemble_dominant:
-                    _ensemble_dominant.add(_noeud)
+                _ensemble_dominant.add(_noeud)
 
         # On créé un multigraphe intermédiaire en reprennant uniquement les arcs et noeuds qui sont dans l'ensemble
         # dominant
