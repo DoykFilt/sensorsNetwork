@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QMessageBox, QFileDialog
+from PyQt5.QtWidgets import QMessageBox, QFileDialog
 from PyQt5 import QtCore
 
 from Moteur.Simulateur import Simulateur
@@ -54,7 +54,7 @@ class ThreadCreation(QtCore.QObject):
         # Ajout des statistiques relevant de cet état initial
         from Controleur.Statistiques import Statistiques
         _statistiques = Statistiques()
-        _statistiques.SajouterDonnees(_reseau, _informatif=0)
+        _statistiques.SajouterDonnees(_reseau, 0)
         _file_manager.FMsauvegarderStatistiques()
 
         self.TC_resultat.emit(_reseau)
@@ -96,7 +96,7 @@ class ThreadSimulation(QtCore.QObject):
         self.TS_finished.emit()
 
 
-class ReseauControleur:
+class ReseauControleur (QFileDialog):
     """
         class Simulateur
 
@@ -105,7 +105,7 @@ class ReseauControleur:
 
     """
 
-    def __init__(self, _fen_principale, _fen_creation):
+    def __init__(self, _fen_principale, _fen_creation, *__args):
         """
             Constructeur de la classe
 
@@ -116,6 +116,7 @@ class ReseauControleur:
 
         """
 
+        super().__init__(*__args)
         self.RC_fen_principale = _fen_principale
         self.RC_fen_creation = _fen_creation
 
@@ -240,8 +241,14 @@ class ReseauControleur:
                 self.RC_fen_principale.FPafficherReseau()
 
         if _signal == Signaux._SAUT_ARRIERE:
-            # TODO Sprint 3 : Permettre la navigation entre chaque changement de rôle
-            pass
+            from Controleur.Statistiques import Statistiques
+            _statistiques = Statistiques()
+
+            _etat = _statistiques.S_etatCyclePrecedent(self.RC_fen_principale.FP_selection)
+
+            if _etat != self.RC_fen_principale.FP_selection:
+                self.RC_fen_principale.FPuptdateLabelSelection(_etat, self.RC_fen_principale.FP_total)
+                self.RC_fen_principale.FPafficherReseau()
 
         # Cas de la demande de l'affichage de l'état suivant
         if _signal == Signaux._AVANT:
@@ -251,8 +258,14 @@ class ReseauControleur:
                 self.RC_fen_principale.FPafficherReseau()
 
         if _signal == Signaux._SAUT_AVANT:
-            # TODO Sprint 3 : Permettre la navigation entre chaque changement de rôle
-            pass
+            from Controleur.Statistiques import Statistiques
+            _statistiques = Statistiques()
+
+            _etat = _statistiques.S_etatCycleSuivant(self.RC_fen_principale.FP_selection)
+
+            if _etat != self.RC_fen_principale.FP_selection:
+                self.RC_fen_principale.FPuptdateLabelSelection(_etat, self.RC_fen_principale.FP_total)
+                self.RC_fen_principale.FPafficherReseau()
 
         # Cas de la demande de changement de valeur brusque de l'état affiché
         if _signal == Signaux._SAUT_TEMPOREL:
@@ -302,8 +315,6 @@ class ReseauControleur:
         # Cas où un nouvel état a été enregistré et est à afficher (généralement à la fin de la simulation et à chaque
         # changement de rôle des capteurs
         if _signal == Signaux._NOUVEL_ETAT:
-            print(_datas["etat"])
-            print(_datas["total"])
             self.RC_fen_principale.FPuptdateLabelSelection(_datas["etat"], _datas["total"])
             self.RC_fen_principale.FPafficherReseau()
 

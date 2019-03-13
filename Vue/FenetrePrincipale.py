@@ -105,15 +105,13 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
 
         _statistiques = Statistiques()
         _donnees_graphique1, _donnees_graphique2 = _statistiques.SgenererDonneesGraphiques()
-
         # Graphique 1
         _ax = self.FP_figure_graphique1.add_subplot(111)
         _ax.clear()
         _lignes = _ax.plot(_donnees_graphique1["y"], _donnees_graphique1["x"], 'o')
         _ax.set_xlabel("Intervalle de temps entre les changements de rôle")
         _ax.set_ylabel("Durée de vie du réseau")
-        _ax.set_title("Durée de vie du réseau")
-        _ax.set_aspect("auto")
+        _ax.set_title("Résultats durée de vie du réseau")
         mplcursors.cursor(_lignes, hover=True)
         self.FP_figure_graphique1.tight_layout()
         self.FP_canvas_graphique1.draw()
@@ -121,11 +119,11 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
         # Graphique 2
         _ax = self.FP_figure_graphique2.add_subplot(111)
         _ax.clear()
-        _lines = _ax.plot(_donnees_graphique2["y"], _donnees_graphique2["x"], 'o')
+        _lignes = _ax.plot(_donnees_graphique2["y"], _donnees_graphique2["x"], 'o')
         _ax.set_xlabel("Durée de la simulation en unité de temps")
         _ax.set_ylabel("Nombre de capteurs connectés")
         _ax.set_title("Capteurs connectés à la passerelle")
-        mplcursors.cursor(_lines, hover=True)
+        mplcursors.cursor(_lignes, hover=True)
         self.FP_figure_graphique2.tight_layout()
         self.FP_canvas_graphique2.draw()
 
@@ -231,7 +229,15 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
             if _total == 0:
                 self.FP_total = 1
 
-            self.FPD_selection_barre_temporelle.setText(str(self.FP_selection + 1) + " / " + str(self.FP_total))
+            _statistiques = Statistiques()
+            if len(_statistiques.S_cycles) == 0:
+                _cycle = "0"
+            else:
+                _cycle = str(_statistiques.S_cycles[_selection])
+
+            self.FPD_selection_barre_temporelle.setText(
+                str(self.FP_selection + 1) + " / " + str(self.FP_total)
+                + " (cycle " + _cycle + ")")
 
             self.FPD_barre_temporelle.setMinimum(0)
             self.FPD_barre_temporelle.setMaximum(self.FP_total - 1)

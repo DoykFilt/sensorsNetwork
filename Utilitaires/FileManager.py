@@ -428,12 +428,17 @@ class Singleton(object):
                 <nbrresultats>
                 <etats>
                     <etat>
+                        <numero_etat>
+                        </numero_etat>
+                        </niveau_de_batterie_moyen>
                         <niveau_de_batterie_moyen>
                         </niveau_de_batterie_moyen>
                         <nbr_actifs>
                         </nbr_actifs>
-                        <informatif>
-                        </informatif>
+                        <moment_insertion>
+                        </moment_insertion>
+                        <cycle>
+                        </cycle>
                     </etat>
                     <etat>
                         ...
@@ -461,21 +466,18 @@ class Singleton(object):
 
         _etats = SubElement(_racine, "etats")
         for _etat in range(0, _statistiques.S_nombre_etats):
+
             _e = SubElement(_etats, "etat")
 
             SubElement(_e, "numero_etat").text = str(_etat)
 
-            if _etat not in _statistiques.S_niveau_de_batterie_moyen:
-                SubElement(_e, "niveau_de_batterie_moyen").text = str(0)
-            else:
-                SubElement(_e, "niveau_de_batterie_moyen").text = str(_statistiques.S_niveau_de_batterie_moyen[_etat]["data"])
+            SubElement(_e, "niveau_de_batterie_moyen").text = str(_statistiques.S_niveau_de_batterie_moyen[_etat])
 
-            if _etat not in _statistiques.S_niveau_de_batterie_moyen:
-                SubElement(_e, "nbr_actifs").text = str(0)
-            else:
-                SubElement(_e, "nbr_actifs").text = str(_statistiques.S_nbr_actifs[_etat]["data"])
+            SubElement(_e, "nbr_actifs").text = str(_statistiques.S_nbr_actifs[_etat])
 
-            SubElement(_e, "informatif").text = str(_statistiques.S_niveau_de_batterie_moyen[_etat]["informatif"])
+            SubElement(_e, "cycle").text = str(_statistiques.S_cycles[_etat])
+
+            SubElement(_e, "moment_insertion").text = str(_statistiques.S_moment_insertion[_etat])
 
         # Sauvegarde des résultats
         _nbrresultats = SubElement(_racine, "nbrresultats")
@@ -506,12 +508,16 @@ class Singleton(object):
                 <nbrresultats>
                 <etats>
                     <etat>
+                        <numero_etat>
+                        </numero_etat>
                         <niveau_de_batterie_moyen>
                         </niveau_de_batterie_moyen>
                         <nbr_actifs>
                         </nbr_actifs>
-                        <informatif>
-                        </informatif>
+                        <cycle>
+                        </cycle>
+                        <moment_insertion>
+                        </moment_insertion>
                     </etat>
                     <etat>
                         ...
@@ -540,9 +546,10 @@ class Singleton(object):
                 _netat = int(next(_etat.iter("numero_etat")).text)
                 _niveau_batterie_moyen = int(next(_etat.iter("niveau_de_batterie_moyen")).text)
                 _nbr_actifs = int(next(_etat.iter("nbr_actifs")).text)
-                _informatif = int(next(_etat.iter("informatif")).text)
+                _cycle = int(next(_etat.iter("cycle")).text)
+                _moment = int(next(_etat.iter("moment_insertion")).text)
 
-                _statistiques.SajouterDonneesBrutes(_niveau_batterie_moyen, _nbr_actifs, _informatif)
+                _statistiques.SajouterDonneesBrutes(_niveau_batterie_moyen, _nbr_actifs, _cycle, _moment)
 
             # Récupérations des résultats de performance de la simulation
             for _resultat in _racine.iter("resultat"):

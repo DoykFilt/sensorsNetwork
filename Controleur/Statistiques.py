@@ -1,3 +1,5 @@
+import copy
+
 from Modele.Roles import Roles
 from Moteur.Simulateur import Simulateur
 from Utilitaires.FileManager import FileManager
@@ -32,9 +34,13 @@ class Singleton:
         """
         if not self.__S_initialized:
             self.S_nombre_etats = 0
-            self.S_niveau_de_batterie_moyen = dict()
-            self.S_nbr_actifs = dict()
+            self.S_niveau_de_batterie_moyen = []
+            self.S_nbr_actifs = []
             self.S_resultats = []
+            self.S_cycles = []
+            self.S_moment_insertion = []
+
+            self.S_etats_nouveau_cycle = [0]
 
             self.__S_initialized = True
 
@@ -58,38 +64,23 @@ class Singleton:
         if _reseau is None:
             return ""
 
-        # Récupère les informations depuis les stats.
-        # Celles-ci contiennent plus d'états transitoire (un par unité de temps)
-        # "informatif" contient le numéro de l'état correspondant au moment d'un changement de rôle ou fin de simulation
-        _nbr_actif = 0
-        for _n in self.S_nbr_actifs.values():
-            if _n["informatif"] == _etat:
-                _nbr_actif = _n["data"]
-        _niveau_de_batterie_moyen = 0
-        for _n in self.S_niveau_de_batterie_moyen.values():
-            if _n["informatif"] == _etat:
-                _niveau_de_batterie_moyen = _n["data"]
-
         _text += "Résultat de la simulation"
-        _text += "Informations sur l'état " + str(_etat) + " de la topologie du réseau\n\n"
-        _text += "Niveau moyen des batteries : " + str(_niveau_de_batterie_moyen) + "\n"
+        _text += "Informations sur l'état " + str(_etat + 1) + \
+                 " (cycle " + str(self.S_cycles[_etat]) + ") de la topologie du réseau\n\n"
+        _text += "Niveau moyen des batteries : " + str(self.S_niveau_de_batterie_moyen[_etat]) + "\n"
         _text += "Nombre de capteurs actifs / Nombre de capteurs total : " + \
-                 str(_nbr_actif) + " / " + str(_reseau.R_nbr_noeuds - 1) + \
-                 " (soit " + str(int(_nbr_actif / (_reseau.R_nbr_noeuds - 1) * 100)) + \
+                 str(self.S_nbr_actifs[_etat]) + " / " + str(_reseau.R_nbr_noeuds - 1) + \
+                 " (soit " + str(int(self.S_nbr_actifs[_etat] / (_reseau.R_nbr_noeuds - 1) * 100)) + \
                  "% de capteurs reliés à la passerelle)\n"
         return _text
 
-    def SajouterDonnees(self, _reseau, _informatif=-1):
+    def SajouterDonnees(self, _reseau, _cycle, _moment=0):
         """
             Extrait les données nécessaire au texte généré par la fonction SgenererTexte.
             Cad le nombres de capteurs reliés au puit et le niveau moyen de la batterie
 
         :param _reseau: Réseau, le réseau depuis lequel extraire les données
-        :param _informatif: int,
-        Récupère les informations depuis les stats.
-        Celles-ci contiennent plus d'états transitoire (un par unité de temps)
-        "informatif" contient le numéro de l'état correspondant au moment d'un changement de rôle ou fin de simulation
-        -1 par default
+        :param _cycle : entier, correspond au nième cycle de vie du réseau simulé.
         """
 
         # Récupération du nombre de capteurs connectés à la passerelle
@@ -104,25 +95,23 @@ class Singleton:
                 _somme_batterie += _reseau.R_graphe.nodes()[_noeud]["batterie"]
         _niveau_batterie_moyen = int(_somme_batterie / (_reseau.R_nbr_noeuds - 1))
 
-        self.SajouterDonneesBrutes(_niveau_batterie_moyen, _nbr_actifs, _informatif)
+        self.SajouterDonneesBrutes(_niveau_batterie_moyen, _nbr_actifs, _cycle, _moment)
 
-    def SajouterDonneesBrutes(self, _niveau_de_batterie_moyen, _nbr_actifs, _informatif):
+    def SajouterDonneesBrutes(self, _niveau_de_batterie_moyen, _nbr_actifs, _cycle, _moment=0):
         """
             Ajoute les données aux attributs de la classe, utilisé par la méthode SajouterDonnees et lors de
             l'importation d'un résultat
 
         :param _niveau_de_batterie_moyen: Float
         :param _nbr_actifs: Entier
-        :param _informatif: int,
         Récupère les informations depuis les stats.
         Celles-ci contiennent plus d'états transitoire (un par unité de temps)
         "informatif" contient le numéro de l'état correspondant au moment d'un changement de rôle ou fin de simulation
         """
-
-        self.S_niveau_de_batterie_moyen[self.S_nombre_etats] = dict({"data": _niveau_de_batterie_moyen,
-                                                                     "informatif": _informatif})
-        self.S_nbr_actifs[self.S_nombre_etats] = dict({"data": _nbr_actifs,
-                                                       "informatif": _informatif})
+        self.S_niveau_de_batterie_moyen.append(_niveau_de_batterie_moyen)
+        self.S_nbr_actifs.append(_nbr_actifs)
+        self.S_cycles.append(_cycle)
+        self.S_moment_insertion.append(_moment)
         self.S_nombre_etats += 1
 
     def SviderEtats(self, _garder_etat_initial):
@@ -134,12 +123,12 @@ class Singleton:
 
         if _garder_etat_initial and self.S_nombre_etats > 0:
             self.S_nombre_etats = 1
-            self.S_niveau_de_batterie_moyen = dict({0: self.S_niveau_de_batterie_moyen[0]})
-            self.S_nbr_actifs = dict({0: self.S_nbr_actifs[0]})
+            self.S_niveau_de_batterie_moyen = [self.S_niveau_de_batterie_moyen[0]]
+            self.S_nbr_actifs = [self.S_nbr_actifs[0]]
         else:
             self.S_nombre_etats = 0
-            self.S_niveau_de_batterie_moyen = dict()
-            self.S_nbr_actifs = dict()
+            self.S_niveau_de_batterie_moyen = []
+            self.S_nbr_actifs = []
         self.S_resultats = []
 
     def SajouterResultat(self, _intervalle, _duree_de_vie):
@@ -169,10 +158,48 @@ class Singleton:
             _graphique1["y"].append(_resultat["intervalle"])
 
         for _etat in range(0, self.S_nombre_etats):
-            _graphique2["x"].append(self.S_nbr_actifs[_etat]["data"] * Simulateur.S_intervalle_recolte)
-            _graphique2["y"].append(_etat)
+            _graphique2["x"].append(self.S_nbr_actifs[_etat])
+            _graphique2["y"].append(self.S_moment_insertion[_etat])
 
         return _graphique1, _graphique2
+
+    def S_obtenir_niveau_de_batterie_moyen(self, _reseau):
+        if len(self.S_niveau_de_batterie_moyen) == 0:
+            return _reseau.R_capacite_batterie_max
+        else:
+            return self.S_niveau_de_batterie_moyen[-1]
+
+    def S_etatCyclePrecedent(self, _etat):
+        if _etat >= self.S_nombre_etats or _etat <= 0 or self.S_nombre_etats < 1:
+            return 0
+
+        _cycle = copy.deepcopy(self.S_cycles[_etat])
+
+        if self.S_cycles[_etat - 1] != _cycle:
+            _cycle = copy.deepcopy(self.S_cycles[_etat - 1])
+
+        # range(start, stop, step) == reversed range
+        for _e in range(len(self.S_cycles[:_etat]) - 1, -1, -1):
+            if self.S_cycles[_e] != _cycle:
+                return _e + 1
+
+        return 0
+
+    def S_etatCycleSuivant(self, _etat):
+        if _etat >= self.S_nombre_etats or _etat < 0 or self.S_nombre_etats < 1:
+            return self.S_nombre_etats
+
+        _cycle = copy.deepcopy(self.S_cycles[_etat])
+
+        # if self.S_cycles[_etat + 1] != _cycle:
+        #     _etat += 1
+        #     _cycle = self.S_cycles[_etat]
+
+        for _e in range(_etat, len(self.S_cycles)):
+            if self.S_cycles[_e] != _cycle:
+                return _e
+
+        return self.S_nombre_etats - 1
 
 
 class Statistiques(Singleton):
