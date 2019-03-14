@@ -72,7 +72,7 @@
          <item>
           <widget class="QPushButton" name="FPD_boutton_saut_arriere">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="text">
             <string>&lt;&lt;</string>
@@ -136,7 +136,7 @@
          <item>
           <widget class="QPushButton" name="FPD_boutton_saut_avant">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="text">
             <string>&gt;&gt;</string>

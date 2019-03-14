@@ -84,7 +84,11 @@ class Singleton:
         """
 
         # Récupération du nombre de capteurs connectés à la passerelle
-        _, _noeuds_deconnectes = Simulateur.SfinDeVieAtteinte(_reseau)
+        if len(self.S_cycles) == 0 or max(self.S_cycles) == 0:
+            _intervalle = 0
+        else:
+            _intervalle = 1
+        _, _noeuds_deconnectes = Simulateur.SfinDeVieAtteinte(_reseau, _intervalle)
         _nbr_noeuds_deconnectes = len(_noeuds_deconnectes)
         _nbr_actifs = _reseau.R_nbr_noeuds - _nbr_noeuds_deconnectes - 1  # Moins le puit
 
@@ -108,6 +112,9 @@ class Singleton:
         Celles-ci contiennent plus d'états transitoire (un par unité de temps)
         "informatif" contient le numéro de l'état correspondant au moment d'un changement de rôle ou fin de simulation
         """
+
+        print("tps " + str(_moment) + " : cycle " + str(_cycle) + " " + str(_nbr_actifs) + " actifs, nv batterie moyen = " + str(_niveau_de_batterie_moyen))
+
         self.S_niveau_de_batterie_moyen.append(_niveau_de_batterie_moyen)
         self.S_nbr_actifs.append(_nbr_actifs)
         self.S_cycles.append(_cycle)

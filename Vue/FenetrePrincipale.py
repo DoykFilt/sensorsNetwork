@@ -229,15 +229,8 @@ class FenetrePrincipale(QtWidgets.QMainWindow, fenetreprincipaledesign_ui.Ui_Mai
             if _total == 0:
                 self.FP_total = 1
 
-            _statistiques = Statistiques()
-            if len(_statistiques.S_cycles) == 0:
-                _cycle = "0"
-            else:
-                _cycle = str(_statistiques.S_cycles[_selection])
-
             self.FPD_selection_barre_temporelle.setText(
-                str(self.FP_selection + 1) + " / " + str(self.FP_total)
-                + " (cycle " + _cycle + ")")
+                str(self.FP_selection + 1) + " / " + str(self.FP_total))
 
             self.FPD_barre_temporelle.setMinimum(0)
             self.FPD_barre_temporelle.setMaximum(self.FP_total - 1)

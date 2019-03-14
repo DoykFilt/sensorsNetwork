@@ -4,7 +4,7 @@ import copy
 import networkx as nx
 import math
 from networkx.algorithms.approximation import dominating_set
-from networkx.algorithms.shortest_paths.generic import shortest_path
+from networkx.algorithms.shortest_paths.generic import shortest_path, has_path
 
 from Modele.Roles import Roles
 from Modele.Signaux import Signaux
@@ -48,6 +48,7 @@ class Simulateur:
         super(Simulateur, self).__init__()
         self.S_connecteur = _connecteur
         self.S_resultats = []
+        self.S_duree_simulation = 0
 
     def SlancerSimulation(self, _reseau):
         """
@@ -81,9 +82,6 @@ class Simulateur:
 
             _reseau_simulation = copy.deepcopy(_reseau)
 
-            # Détermination de l'intervalle de temps
-            self.__SdeterminationIntervalleTemps()
-
             _text_progression = "Simulation en cours.. " \
                                 "\nCycle " + str(_cycle) + \
                                 "\nintervalle utilisé : " + str(self.S_intervalle_roulement) + " unité(s) de temps"
@@ -94,16 +92,16 @@ class Simulateur:
             # Configuration topologique du réseau (routage et ensemble dominant)
             _reseau_simulation = self.SconfigurationTopologique(_reseau_simulation)
 
-            _fin_de_vie_atteinte, _capteurs_deconnectes = self.SfinDeVieAtteinte(_reseau_simulation)
+            _fin_de_vie_atteinte, _capteurs_deconnectes = self.SfinDeVieAtteinte(_reseau_simulation,
+                                                                                 self.S_intervalle_roulement)
             self.S_duree_de_vie = 0
 
             # Tant que la fin de vie du réseau n'a pas été atteinte, on simule consommation énergétique en enregistrant
             # les étapes intermédiaires
             while not _fin_de_vie_atteinte:
 
-                print(self.S_duree_simulation)
+                # print(str(self.S_duree_simulation) + " : " + str(len(_capteurs_deconnectes)) + " capteurs déconnectés")
 
-                _etat_informatif = -1
                 # Cas où le temps écoulé correspond à l'intervalle de temps de changement de rôles des capteurs.
                 if self.S_intervalle_roulement != 0:
                     if self.S_duree_de_vie == 0 \
@@ -116,24 +114,26 @@ class Simulateur:
                         _statistiques.SajouterDonnees(_reseau_simulation, _cycle, self.S_duree_simulation)
                         self.S_connecteur.emit(Signaux._NOUVEL_ETAT, dict({"etat": _etat, "total": _total}))
 
-                _reseau_simulation = self.__SsimulationSurUnRoulement(_reseau_simulation)
+                _fin_de_vie_atteinte, _capteurs_deconnectes = self.SfinDeVieAtteinte(_reseau_simulation,
+                                                                                     self.S_intervalle_roulement)
 
-                # La valeur de la barre de progression = niveau de batterie moyen / niveau de batterie initial
-                _niveau_de_batterie_moy = _statistiques.S_obtenir_niveau_de_batterie_moyen(_reseau_simulation)
-                _capacite_batterie_max = _reseau_simulation.R_capacite_batterie_max
-                _ratio = (1 - (_niveau_de_batterie_moy / _capacite_batterie_max))
+                if not _fin_de_vie_atteinte:
+                    _reseau_simulation = self.__SsimulationSurUnRoulement(_reseau_simulation, _capteurs_deconnectes)
 
-                self.S_connecteur.emit(Signaux._PROGRESSION_SIMULATION, dict({"avancee": int(_ratio * 100),
-                                                                              "text": _text_progression}))
-
-                _fin_de_vie_atteinte, _capteurs_deconnectes = self.SfinDeVieAtteinte(_reseau_simulation)
+                    # La valeur de la barre de progression = niveau de batterie moyen / niveau de batterie initial
+                    # _niveau_de_batterie_moy = _statistiques.S_obtenir_niveau_de_batterie_moyen(_reseau_simulation)
+                    # _capacite_batterie_max = _reseau_simulation.R_capacite_batterie_max
+                    # _ratio = (1 - (_niveau_de_batterie_moy / _capacite_batterie_max))
+                    _ratio = (len(_capteurs_deconnectes) / _reseau.R_nbr_noeuds)
+                    self.S_connecteur.emit(Signaux._PROGRESSION_SIMULATION, dict({"avancee": int(_ratio * 100),
+                                                                                  "text": _text_progression}))
 
             # Ajout de l'état de la fin de vie du réseau
             _etat += 1
             _total += 1
             _file_manager.FMenregistrerEtat(_reseau_simulation)
             _statistiques.SajouterDonnees(_reseau_simulation, _cycle, self.S_duree_simulation)
-            self.S_duree_simulation += self.S_duree_simulation  # Pour séparer les résultats d'un cycle à l'autre
+            self.S_duree_simulation += self.S_intervalle_recolte * 100  # Pour séparer les résultats d'un cycle à lautre
             self.S_connecteur.emit(Signaux._NOUVEL_ETAT, dict({"etat": _etat, "total": _total}))
 
             # On met la barre de progression à 100%
@@ -144,6 +144,10 @@ class Simulateur:
 
             self.S_resultats.append(dict({"intervalle": self.S_intervalle_roulement, "resultat": self.S_duree_de_vie}))
             _cycle += 1
+
+            # Détermination de l'intervalle de temps pour le prochain tour
+            self.__SdeterminationIntervalleTemps()
+
         # Fin while, cad fin de la simulation, le maximum a été trouvé
 
         FileManager.FMsauvegarderStatistiques()
@@ -197,6 +201,8 @@ class Simulateur:
         """
         # Déyermination des rôles des capteurs en prenant en compte uniquement l'ensemble dominant
 
+        # _reseau = Simulateur.SreseauSansCapteursVides(_reseau)
+
         _ensemble_dominant = Simulateur.SdeterminationEnsembleDominant(_reseau)
         _reseau.R_ensemble_dominant = _ensemble_dominant
         # Tous les noeuds de l'ensemble dominant prennent le rôle de Recepteur/Emetteur
@@ -220,20 +226,25 @@ class Simulateur:
         return _reseau
 
     @staticmethod
-    def SdeterminationEnsembleDominant(_reseau):
+    def SdeterminationEnsembleDominant(_reseau_initial):
         """
             Permet de déterminer l'ensemble dominant d'un réseau. Prend en compte le niveau restant de la batterie
         :param _reseau: Reseau, le réseau à configurer
         :return: Reseau, le réseau configuré
         """
 
-        # En premier, stocke dans chaque noeuds et arc un poids inversement égale au niveau de la batterie des noeuds
-        _reseau = Simulateur.SactualisationPoids(_reseau)
-        # Sélection des noeuds dominants avec un algorithme de networkX
+        # Avant tout on créé un copie du réseau duquel on supprime l'ensemble des noeuds qui n'ont plus de batterie
+        # ainsi que les arcs qui y sont reliés
+        _reseau, _ = Simulateur.SreseauSansCapteursVides(_reseau_initial)
+
+        # # En premier, stocke dans chaque noeuds et arc un poids inversement égale au niveau de la batterie des noeuds
+        # _reseau = Simulateur.SactualisationPoids(_reseau)
+        # # Sélection des noeuds dominants avec un algorithme de networkX
         _ensemble_dominant = dominating_set.min_weighted_dominating_set(
             _reseau.R_graphe,
             weight="poids_dominant"
         )
+        # _ensemble_dominant = dominating_set.min_edge_dominating_set(_reseau.R_graphe)
 
         # On ajoute le ou les puits à l'ensemble dominant si ils n'y sont pas
         for _noeud in _reseau.R_graphe:
@@ -249,6 +260,21 @@ class Simulateur:
         for _a in _reseau.R_graphe.edges():
             if _a[0] in _ensemble_dominant and _a[1] in _ensemble_dominant:
                 _arcs_dominants.append(_a)
+
+        # _arcs_dominants = []
+        # _id_noeuds_dominants = []
+        # for _arc in _ensemble_dominant:
+        #     if _arc != 0:
+        #         _arcs_dominants.append(_arc)
+        #         if _arc[0] not in _id_noeuds_dominants:
+        #             _id_noeuds_dominants.append(_arc[0])
+        #         if _arc[1] not in _id_noeuds_dominants:
+        #             _id_noeuds_dominants.append(_arc[1])
+        #
+        # _noeuds_dominants = {}
+        # for _n in _id_noeuds_dominants:
+        #     _noeuds_dominants[_n] = _reseau.R_graphe.node[_n]
+
         _multigraphe = nx.Graph()
         _multigraphe.add_nodes_from(_noeuds_dominants)
         _multigraphe.add_edges_from(_arcs_dominants)
@@ -324,9 +350,17 @@ class Simulateur:
             # cours chemin entre les deux noeuds les plus proches
             # ----------------------------------------------------------------------------------------------------------
 
-            _plus_court_chemin = shortest_path(_reseau.R_graphe,
-                                               _paire_la_plus_proche[0], _paire_la_plus_proche[1],
-                                               weight='poids_dominant')
+            try:
+                _plus_court_chemin = shortest_path(_reseau.R_graphe,
+                                                   _paire_la_plus_proche[0], _paire_la_plus_proche[1],
+                                                   weight='poids_dominant')
+            except:
+                # Si une exception est retournée c'est qu'il n'est plus possible de relier les deux noeuds :
+                # en conséquent on supprime le sous graphe qu'on essayait d'incorporer et on passe au tour de boucle
+                # suivant
+                _subgraphs.remove(_sub_graph_plus_pres)
+                continue
+
             # On ajoute les nouveaux noeuds et arcs à l'ensemble dominant
             # Arcs
             for _a in _reseau.R_graphe.edges():
@@ -429,7 +463,7 @@ class Simulateur:
         # Ensuite pour tout les noeuds du graphe qui n'ont pas encore de routage (donc qui sont pas dans l'ensemble
         # dominant), on les fait router vers le noeud voisin de l'arbre dominant avec le plus d'énergie
         for _noeud in _reseau.R_graphe.nodes:
-            # Si le routage n'a pas été déterminé (donc si il ne fait pas parti de l'ensemble dominant
+            # Si le routage n'a pas été déterminé (donc si il ne fait pas parti de l'ensemble dominant)
             if _reseau.R_graphe.nodes[_noeud]['route'] == -1:
                 _meilleur_routage = _noeud
                 _meilleur_energie = 0
@@ -473,7 +507,7 @@ class Simulateur:
                 _reseau.R_graphe.nodes[_arc[0]]['route'] = _noeud
                 Simulateur.SrouteRecursive(_arc[0], _reseau, _ensemble_dominant)
 
-    def __SsimulationSurUnRoulement(self, _reseau):
+    def __SsimulationSurUnRoulement(self, _reseau, _capteurs_deconnectes):
         """
             Permet de simuler la consommation énergétique du réseau sur une unité de temps.
 
@@ -483,10 +517,10 @@ class Simulateur:
 
         self.S_duree_de_vie += self.S_intervalle_recolte
         self.S_duree_simulation += self.S_intervalle_recolte
-        self.__Sconsommation(_reseau)
+        self.__Sconsommation(_reseau, _capteurs_deconnectes)
         return _reseau
 
-    def __Sconsommation(self, _reseau):
+    def __Sconsommation(self, _reseau, _capteurs_deconnectes):
         """
             permet de simuler la consommation énergétique pour une génération de données. Cad que chaque capteur
             récolte de l'information puis l'envoie vers le puit. Cette méthode simule la consommation  d'NRJ nécessaire
@@ -510,7 +544,7 @@ class Simulateur:
         # Chaque capteur récolte de l'information (sauf le puit ou si ils n'ont plus d'énergie),
         # ils sont donc tous placés dans la liste
         for _noeud in _reseau.R_graphe.nodes():
-            if _reseau.R_graphe.nodes()[_noeud]["role"] != Roles._PUIT:
+            if _reseau.R_graphe.nodes()[_noeud]["role"] != Roles._PUIT and _noeud not in _capteurs_deconnectes:
                 # On leur fait consommer l'énergie nécessaire pour générer les donnése
                 _reseau.R_graphe.nodes()[_noeud]["batterie"] -= self.S_unite_consommation_recolte
                 if _reseau.R_graphe.nodes()[_noeud]["batterie"] > 0:
@@ -543,7 +577,7 @@ class Simulateur:
         return _reseau
 
     @staticmethod
-    def SfinDeVieAtteinte(_reseau):
+    def SfinDeVieAtteinte(_reseau_initial, _intervalle_roulement):
         """
             Permet de déterminer si le réseau a atteint sa fin de vie. Un ratio du nombre de capteur relié au puit est
             utilisé.
@@ -552,16 +586,36 @@ class Simulateur:
         :return:    boolean, vrai si la fin de vie du réseau a été atteinte
                     int[], liste des noeuds déconnectés
         """
+
         # Pour chaque noeud, suivre la chaine de routage qui le lie au puit. Si la chaîne est brisée décompter ce noeud
         _noeuds_deconnectes = []
         _fin_de_vie_atteinte = False
+        _puit = 0
+
+        if _intervalle_roulement != 0:
+            _reseau, _noeuds_vides = Simulateur.SreseauSansCapteursVides(_reseau_initial)
+            _reseau = Simulateur.SconfigurationTopologique(_reseau)
+            _noeuds_deconnectes.extend(_noeuds_vides)
+
+        else:
+            _reseau = _reseau_initial
 
         for _noeud in _reseau.R_graphe.nodes():
-            # La récurisivité est utilisée pour remonter le routage en routage jusqu'au puit
-            _, _noeuds_deconnectes = Simulateur.Sparcourt(_noeud, _reseau, _noeuds_deconnectes)
+            if _reseau.R_graphe.node[_noeud]['role'] == Roles._PUIT:
+                _puit = _noeud
+                break
 
-            if len(_noeuds_deconnectes) / (_reseau.R_nbr_noeuds - 1) >= Simulateur.S_fin_de_vie:
-                _fin_de_vie_atteinte = True
+        for _noeud in _reseau.R_graphe.nodes():
+
+            if not has_path(_reseau.R_graphe, _noeud, _puit):
+                _noeuds_deconnectes.append(_noeud)
+
+            elif _intervalle_roulement == 0:
+                # La récurisivité est utilisée pour remonter de routage en routage jusqu'au puit
+                _, _noeuds_deconnectes = Simulateur.Sparcourt(_noeud, _reseau, _noeuds_deconnectes)
+
+        if len(_noeuds_deconnectes) / (_reseau.R_nbr_noeuds - 1) >= Simulateur.S_fin_de_vie:
+            _fin_de_vie_atteinte = True
 
         return _fin_de_vie_atteinte, _noeuds_deconnectes
 
@@ -603,3 +657,19 @@ class Simulateur:
                     return True, _noeuds_deconnectes
                 else:
                     return False, _noeuds_deconnectes
+
+    @staticmethod
+    def SreseauSansCapteursVides(_reseau):
+
+        _copie = copy.deepcopy(_reseau)
+
+        _noeuds_vides = []
+
+        for _noeud in _copie.R_graphe.nodes():
+            if _copie.R_graphe.nodes()[_noeud]["role"] != Roles._PUIT and \
+                    _copie.R_graphe.nodes()[_noeud]["batterie"] == 0:
+                _noeuds_vides.append(_noeud)
+
+        _copie.R_graphe.remove_nodes_from(_noeuds_vides)
+
+        return _copie, _noeuds_vides

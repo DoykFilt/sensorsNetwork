@@ -478,7 +478,17 @@ class Generateur:
         # Récupération, pour commencer, l'ensemble des noeuds déconnectés
         from Moteur.Simulateur import Simulateur
         _simulateur = Simulateur(None)
-        _, _ensemble_deconnecte = _simulateur.SfinDeVieAtteinte(_reseau)
+
+        # On test si on est dans le cas du cycle 0, si c'est le cas on cherche si la fin de vie est atteinte avec la
+        # méthode adéquate
+        from Controleur.Statistiques import Statistiques
+        _statistiques = Statistiques()
+        if len(_statistiques.S_cycles) == 0 or max(_statistiques.S_cycles) == 0:
+            _intervalle = 0
+        else:
+            _intervalle = -1
+
+        _, _ensemble_deconnecte = _simulateur.SfinDeVieAtteinte(_reseau, _intervalle)
 
         # ==============================================================================================================
         # Paramétrage des arcs
@@ -533,14 +543,15 @@ class Generateur:
         _nodes_pos_deconnectes = []
         # Décomposition des arcs en trois parties, les noeuds dominants, les déconnectés et le reste
         for _noeud in _reseau.R_graphe.nodes():
-            if _noeud in _ensemble_deconnecte:
-                _nodes_pos_deconnectes.append([_reseau.R_graphe.node[_noeud]['pos'][0],
-                                               _reseau.R_graphe.node[_noeud]['pos'][1]])
-            elif _noeud in _reseau.R_ensemble_dominant.nodes():
-                _nodes_pos_dominant.append([_reseau.R_graphe.node[_noeud]['pos'][0],
-                                            _reseau.R_graphe.node[_noeud]['pos'][1]])
-            else:
-                _nodes_pos.append([_reseau.R_graphe.node[_noeud]['pos'][0], _reseau.R_graphe.node[_noeud]['pos'][1]])
+            if _reseau.R_graphe.node[_noeud]['role'] != Roles._PUIT:
+                if _noeud in _ensemble_deconnecte:
+                    _nodes_pos_deconnectes.append([_reseau.R_graphe.node[_noeud]['pos'][0],
+                                                   _reseau.R_graphe.node[_noeud]['pos'][1]])
+                elif _noeud in _reseau.R_ensemble_dominant.nodes():
+                    _nodes_pos_dominant.append([_reseau.R_graphe.node[_noeud]['pos'][0],
+                                                _reseau.R_graphe.node[_noeud]['pos'][1]])
+                else:
+                    _nodes_pos.append([_reseau.R_graphe.node[_noeud]['pos'][0], _reseau.R_graphe.node[_noeud]['pos'][1]])
         _nodes_pos = numpy.array(_nodes_pos)
         _nodes_pos_dominant = numpy.array(_nodes_pos_dominant)
         _nodes_pos_deconnectes = numpy.array(_nodes_pos_deconnectes)
@@ -581,8 +592,8 @@ class Generateur:
             _x.append(_pos[0])
             _y.append(_pos[1])
         node_trace_dominant = dict(type='scatter',
-                                   x=_nodes_pos_dominant[:, 0],
-                                   y=_nodes_pos_dominant[:, 1],
+                                   x=_x,
+                                   y=_y,
                                    hoverinfo='text',
                                    text=[],
                                    mode='markers',
@@ -613,8 +624,8 @@ class Generateur:
             _y.append(_pos[1])
         if len(_nodes_pos_deconnectes) > 0:
             node_trace_deconnecte = dict(type='scatter',
-                                         x=_nodes_pos_deconnectes[:, 0],
-                                         y=_nodes_pos_deconnectes[:, 1],
+                                         x=_x,
+                                         y=_y,
                                          hoverinfo='text',
                                          text=[],
                                          mode='markers',
@@ -637,44 +648,63 @@ class Generateur:
         if len(_nodes_pos) == 0:
             node_trace_dominant["marker"]["showscale"] = True
 
+        _texte_puit = ""
+
         # Ajout des informations pour l'affichage d'informations supplémentaires
         # - Le texte qui s'affiche au survole d'un noeud avec la souris
         # - la couleur du noeud
         for node, adjacencies in enumerate(_reseau.R_graphe.adjacency()):
             # Le puit est dessiné en violet et les capteurs en nuance de couleur en fonction du niveau de leur batterie
             # Sont affichés au passage de la souris :
-            #   - Le rôle du noeud (puit, émetteur/récepteur, émetteur)
             #   - Le prochain noeud vers lequel envoyer les données
             #   - l'énergie restante (si ce n'est pas un puit, si c'est le cas sa couleur est mise en violet). Si il
             #       n'a plus d'énergie, sa couleur est mise en noir
             #   - le nombre de capteurs adjacent (si c'est le puit)
 
-            node_info = "Capteur n°" + str(node) + " | Emetteur/Récepteur | " + \
-                        "Energie restante : " + str(_reseau.R_graphe.node[node]['batterie']) + " | " + \
-                        "Routage : " + str(_reseau.R_graphe.node[node]['route'])
-
-            if node in _ensemble_deconnecte:
-                if _reseau.R_graphe.nodes()[node]['batterie'] > 0:
-                    node_trace_deconnecte['marker']['color'] += tuple(['gray'])
-                else:
-                    node_trace_deconnecte['marker']['color'] += tuple(['black'])
-                node_trace_deconnecte['text'] += tuple([node_info])
-            elif node in _reseau.R_ensemble_dominant:
-                if _reseau.R_graphe.node[node]['role'] == Roles._PUIT:
-                    node_trace_dominant['marker']['color'] += tuple(['purple'])
-                    node_info = "Passerelle | " + str(len(adjacencies[1])) + " capteurs adjacents"
-                else:
-                    node_trace_dominant['marker']['color'] += tuple([_reseau.R_graphe.node[node]['batterie']])
-                node_trace_dominant['text'] += tuple([node_info])
+            if _reseau.R_graphe.node[node]['role'] == Roles._PUIT:
+                _texte_puit = "Passerelle | " + str(len(adjacencies[1])) + " capteurs adjacents"
             else:
-                node_trace['marker']['color'] += tuple([_reseau.R_graphe.node[node]['batterie']])
-                node_trace['text'] += tuple([node_info])
+                node_info = "Capteur n°" + str(node) + " | " + \
+                            "Nv batterie : " + str(int(_reseau.R_graphe.node[node]['batterie'])) + " | " + \
+                            "Route : " + str(_reseau.R_graphe.node[node]['route'])
+
+                if node in _ensemble_deconnecte:
+                    if _reseau.R_graphe.nodes()[node]['batterie'] > 0:
+                        node_trace_deconnecte['marker']['color'] += tuple(['gray'])
+                    else:
+                        node_trace_deconnecte['marker']['color'] += tuple(['black'])
+                    node_trace_deconnecte['text'] += tuple([node_info])
+                elif node in _reseau.R_ensemble_dominant:
+                    node_trace_dominant['marker']['color'] += tuple([_reseau.R_graphe.node[node]['batterie']])
+                    node_trace_dominant['text'] += tuple([node_info])
+                else:
+                    node_trace['marker']['color'] += tuple([_reseau.R_graphe.node[node]['batterie']])
+                    node_trace['text'] += tuple([node_info])
+
+        # Le puit à afficher différemment
+        _puits_trace = []
+        for _noeud in _reseau.R_graphe.nodes():
+            if _reseau.R_graphe.node[_noeud]['role'] == Roles._PUIT:
+                _puits_trace.append(dict(type='scatter',
+                                         x=[_reseau.R_graphe.node[_noeud]['pos'][0]],
+                                         y=[_reseau.R_graphe.node[_noeud]['pos'][1]],
+                                         hoverinfo='text',
+                                         text=_texte_puit,
+                                         mode='markers',
+                                         marker=dict(
+                                             showscale=False,
+                                             colorscale='Greys',
+                                             reversescale=True,
+                                             color='yellow',
+                                             symbol=['pentagon'],
+                                             size=20,
+                                             line=dict(width=2, color="red"))))
 
         # On concatène l'ensemble des données, arcs et noeuds, à afficher. L'affiche est supperposé de gauche à droite
         if len(_nodes_pos_deconnectes) > 0:
-            _datas = edge_trace + [node_trace] + edge_trace_dominant + [node_trace_deconnecte] + [node_trace_dominant]
+            _datas = edge_trace + [node_trace] + edge_trace_dominant + [node_trace_deconnecte] + [node_trace_dominant] + _puits_trace
         else:
-            _datas = edge_trace + [node_trace] + edge_trace_dominant + [node_trace_dominant]
+            _datas = edge_trace + [node_trace] + edge_trace_dominant + [node_trace_dominant] + _puits_trace
 
         # La création de la figure finale à afficher
         fig = go.Figure(data=_datas,
