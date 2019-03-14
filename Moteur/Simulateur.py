@@ -82,6 +82,9 @@ class Simulateur:
 
             _reseau_simulation = copy.deepcopy(_reseau)
 
+            # Détermination de l'intervalle de temps
+            self.__SdeterminationIntervalleTemps()
+
             _text_progression = "Simulation en cours.. " \
                                 "\nCycle " + str(_cycle) + \
                                 "\nintervalle utilisé : " + str(self.S_intervalle_roulement) + " unité(s) de temps"
@@ -145,9 +148,6 @@ class Simulateur:
             self.S_resultats.append(dict({"intervalle": self.S_intervalle_roulement, "resultat": self.S_duree_de_vie}))
             _cycle += 1
 
-            # Détermination de l'intervalle de temps pour le prochain tour
-            self.__SdeterminationIntervalleTemps()
-
         # Fin while, cad fin de la simulation, le maximum a été trouvé
 
         FileManager.FMsauvegarderStatistiques()
@@ -166,7 +166,8 @@ class Simulateur:
             l'augmentation de la durée de vie par rapport à la précédente ne dépasse pas un paramètre fixé S_performance
         """
 
-        if len(self.S_resultats) > 1:
+        # Comparaison des deux premières solutions
+        if len(self.S_resultats) == 2:
 
             _dernier_resultat = self.S_resultats[-1]["resultat"]
             _avant_dernier_resultat = self.S_resultats[-2]["resultat"]
@@ -178,18 +179,55 @@ class Simulateur:
             if _ratio < self.S_performance:
                 return True
 
+        # Sinon si 4 solutions ont déjà étées réalisées
+        elif len(self.S_resultats) > 4 and len(self.S_resultats) % 2 == 0:
+            _resultat_base = self.S_resultats[-3]["resultat"]
+            _avant_dernier_resultat = self.S_resultats[-2]["resultat"]
+            _dernier_resultat = self.S_resultats[-1]["resultat"]
+
+            if _dernier_resultat <= _resultat_base and _avant_dernier_resultat <= _resultat_base:
+                return True
+
+            _ratio_dernier = (_dernier_resultat - _resultat_base) / _dernier_resultat
+            _ratio_avant_dernier = (_avant_dernier_resultat - _resultat_base) / _avant_dernier_resultat
+            if _ratio_dernier < self.S_performance and _ratio_avant_dernier <  self.S_performance:
+                return True
+
         return False
 
     def __SdeterminationIntervalleTemps(self):
         """
-            Permet de déterminer l'intervalle de changement de rôle des capteurs en fonction du précédent et du résultat
-            de la précédente simulation.
-            L'intervalle est égal à la moitié de sa précédente valeur
+            Permet de déterminer l'intervalle de changement de rôle des capteurs en fonction du précédent et des tours
+            de simulation précédents.
+            Le premier tour l'intervalle est nul.
+            Le deuxième tour l'intervalle est positioné arbitrairement à la moitié du résultat du 1er tour
+            Les autres autres se font en deux phases :
+                On compare le résultat du tour précédent avec - la moitié de l'intervalle précédent
+                                                              - l'intervalle précédetn plus sa moitié
+                Et on prend le meilleur des trois
         """
-        if self.S_intervalle_roulement == 0:
+        print(self.S_resultats)
+        print(len(self.S_resultats))
+        # Premier tour
+        if len(self.S_resultats) == 0:
+            self.S_intervalle_roulement = 0
+        # Deuxième tours
+        elif len(self.S_resultats) == 1:
             self.S_intervalle_roulement = self.S_duree_de_vie / 2
+        # Autres tours
         else:
-            self.S_intervalle_roulement /= 2
+            # Si le nombre de résultats est pair : les deux phases sont passées
+            if len(self.S_resultats) % 2 == 0:
+                if self.S_resultats[-1]["resultat"] < self.S_resultats[-2]["resultat"] \
+                        and len(self.S_resultats) - 2 != 0:
+                    # On inverse les deux derniers résultats afin d'avoir le meilleur à la fin de la liste
+                    _temp = self.S_resultats[-2]
+                    self.S_resultats.remove(self.S_resultats[-2])
+                    self.S_resultats.append(_temp)
+                self.S_intervalle_roulement = self.S_resultats[-1]["intervalle"] * 1.5
+            else:
+                self.S_intervalle_roulement = self.S_resultats[-2]["intervalle"] * 0.5
+
 
     @staticmethod
     def SconfigurationTopologique(_reseau):

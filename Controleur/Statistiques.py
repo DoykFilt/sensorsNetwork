@@ -113,7 +113,7 @@ class Singleton:
         "informatif" contient le numéro de l'état correspondant au moment d'un changement de rôle ou fin de simulation
         """
 
-        print("tps " + str(_moment) + " : cycle " + str(_cycle) + " " + str(_nbr_actifs) + " actifs, nv batterie moyen = " + str(_niveau_de_batterie_moyen))
+        # print("tps " + str(_moment) + " : cycle " + str(_cycle) + " " + str(_nbr_actifs) + " actifs, nv batterie moyen = " + str(_niveau_de_batterie_moyen))
 
         self.S_niveau_de_batterie_moyen.append(_niveau_de_batterie_moyen)
         self.S_nbr_actifs.append(_nbr_actifs)
