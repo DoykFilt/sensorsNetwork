@@ -1,9 +1,22 @@
+"""@package docstring
+    Auteur : Beaufils Thibaud
+    V 1.0
+    PRD 20/03/2019
+
+    Module FileManager
+
+    Module utile pour l'utilisation de Log dans le programme
+
+    Possède deux classes :
+    - FileManager : Dérive de Singleton, permet de gérer les fichiers
+    - Singleton : Permet de n'avoir qu'une même implémentation possible de la classe FileManager
+"""
+
 import errno
 import os
 import shutil
 from xml.etree.ElementTree import Element, SubElement, tostring, parse
 from xml.dom import minidom
-
 import networkx as nx
 
 from Modele.Arc import Arc
@@ -11,16 +24,22 @@ from Modele.Capteur import Capteur
 from Modele.Passerelle import Passerelle
 from Modele.Roles import Roles
 from Moteur.Generateur import Generateur
+from Utilitaires.Log import Log
+
+
+_log = Log()
 
 
 class Singleton(object):
     """
         class Singleton
 
-        Utilisée par la classe FileManager, permet de n'utiliser qu'une seule instance de la classe sur tout le projet
+        Utilisée par la classe FileManager, permet de n'utiliser qu'une seule instance de la classe sur tout le projet.
 
-        Cette classe permet de sauvegarder ou exporter un réseau, un résultat de simulation en XML ou HTML.
+        Cette classe permet de sauvegarder ou exporter un réseau, un résultat de simulation en XML et HTML.
 
+        :var self.FM_chemin_local : String, le chemin absolu vers le dossier local contenant les documents
+            intermédiaires généré par le programme
     """
 
     # Elements clé pour la création d'un singleton en python
@@ -33,17 +52,11 @@ class Singleton(object):
         return cls._instances[cls]
 
     FM_chemin_local = _path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..\\donnees\\reseau"))
-    # def __init__(self):
-    #     """
-    #         Constructeur de la classe, récupère le chemin absolu du dossier de sauvegarde local
-    #     """
 
     def FMsauvegarderReseauVersXML(self, _reseau, _chemin):
         """
-            Permet de sauvegarder un réseau dans un fichier xml. Utilise la bibliothèque xml, en particulier ElementTree
-
-            :param _reseau : le réseau (Reseau) à sauvegarder
-            :param _chemin : le chemin (str) du fichier vers lequel sauvegarder le réseau
+            Permet de sauvegarder un réseau dans un fichier .xml
+            Utilise la bibliothèque xml, en particulier ElementTree
 
             La structure du XML est la suivante :
             <reseau>
@@ -75,12 +88,16 @@ class Singleton(object):
                     </arcs>
                 </graphe
             </reseau>
+
+            :param _reseau : Reseau, le réseau à sauvegarder
+            :param _chemin : String, le chemin du fichier vers lequel sauvegarder le réseau
         """
+        _log.Linfo("Début ## FileManager.FMsauvegarderReseauVersXML")
 
         # La racine
         _racine = Element("reseau")
 
-        # Les meta données
+        # Les meta-données
         _metadonnees = SubElement(_racine, "meta")
         _nbrnoeuds = SubElement(_metadonnees, "nbrnoeuds")
         _nbrnoeuds.text = str(_reseau.R_nbr_noeuds)
@@ -115,19 +132,16 @@ class Singleton(object):
         _xml = tostring(_racine, 'utf-8')
         _xml = minidom.parseString(_xml)
 
-        # Si le nom de fichier donné contient une extension on l'enlève et on la remplace par xml en sauvegardant
+        # Si le nom de fichier fourni contient une extension on l'enlève et on la remplace par xml en sauvegardant
         if len(_chemin.split(".")) > 1:
             _chemin = _chemin.split(".")[0]
+
         with open(_chemin + ".xml", 'w') as f:
             f.write(_xml.toprettyxml("  "))
 
     def FMchargerReseauDepuisXML(self, _chemin):
         """
             Permet de charger un réseau depuis un fichier xml. Utilise la bibliothèque xml, en particulier ElementTree
-
-            :param _chemin : le chemin (str) du fichier depuis lequel charger le réseau
-
-            :return le réseau (Reseau) créé
 
             La structure du XML doit être la suivant :
 
@@ -160,9 +174,16 @@ class Singleton(object):
                     </arcs>
                 </graphe
             </reseau>
+
+            :param _chemin : le chemin (str) du fichier depuis lequel charger le réseau
+
+            :return le réseau (Reseau) créé
         """
+        _log.Linfo("Début ## FileManager.FMsauvegarderReseauVersXML")
+
         # Importation en local pour éviter les conflits
         from Controleur.ReseauControleur import ReseauControleur
+        from Moteur.Simulateur import Simulateur
 
         _capteurs = []
         _arcs = []
@@ -177,7 +198,7 @@ class Singleton(object):
             _batterie = float(next(_noeud.iter("batterie")).text)
             _route = int(next(_noeud.iter("route")).text)
             _role = Roles(int(next(_noeud.iter("role")).text))
-            if _role == Roles._PUIT:
+            if _role == Roles.PUIT:
                 _capteurs.append(Passerelle((_x, _y)))
             else:
                 _capteurs.append(Capteur((_x, _y), _batterie, _role, _route))
@@ -201,7 +222,6 @@ class Singleton(object):
             ReseauControleur.RCmessageErreur("Le nombre de noeuds en meta et réél ne correspondent pas")
             return None
 
-        from Moteur.Simulateur import Simulateur
         _reseau.R_ensemble_dominant = Simulateur.SdeterminationEnsembleDominant(_reseau)
 
         return _reseau
@@ -212,6 +232,8 @@ class Singleton(object):
 
             :return Le chemin str vers la page html
         """
+        _log.Linfo("Début ## FileManager.FMobtenirCheminHTMLVide")
+
         _chemin = self.FM_chemin_local + "\\pagevide.html"
         if not os.path.exists(_chemin):
             if not os.path.exists(self.FM_chemin_local):
@@ -230,16 +252,18 @@ class Singleton(object):
                         """)
         return _chemin
 
-    def FMenregistrerEtat(self, _reseau):
+    def FMenregistrerEtat(self, _reseau, _show_html):
         """
 
             Permet de sauvegarder un état du réseau en local
 
-        :param _reseau: Reseau, reseau dont l'état est à enregistrer comme une nouvelle étape de la simulation
+        :param _reseau : Reseau, reseau dont l'état est à enregistrer comme une nouvelle étape de la simulation
+        :param _show_html : Booléen, détermine si le réseau sera enregistré au format html en plus du format xml
 
         :return:    int, le numéro de l'état attribué
                     int, le nombre total d'états
         """
+        _log.Linfo("Début ## FileManager.FMenregistrerEtat")
 
         # Récopération du chemin, le nom se base sur le numéro de l'état
         _chemin = self.FM_chemin_local + "\\resultats simulation"
@@ -255,29 +279,31 @@ class Singleton(object):
         # Enregistrement au format XML
         self.FMsauvegarderReseauVersXML(_reseau, _fichier_etat)
 
-        # Enregistrement au format HTML
-        with open(_fichier_etat + ".html", 'w') as f:
-            f.write(Generateur.GgenerationHTML(_reseau))
+        if _show_html:
+            # Enregistrement au format HTML
+            with open(_fichier_etat + ".html", 'w') as f:
+                f.write(Generateur.GgenerationHTML(_reseau))
 
         return _numero_etat, len(_liste_etats) + 1
 
     def FMchargerEtat(self, _numero_etat):
         """
 
-            Permet de charger un état en local
+            Permet de charger un état en le plaçant en local
 
         :param _numero_etat : int, le numéro de l'état à charger
-        :return: Reseau, le reseau à l'état chargé, None si inexistant
 
+        :return: Reseau, le reseau à l'état chargé, None si inexistant
         """
+        _log.Linfo("Début ## FileManager.FMchargerEtat")
+
         _chemin = self.FM_chemin_local + "\\resultats simulation"
         _fichier_etat = _chemin + "\\etat" + str(_numero_etat) + ".xml"
-        if not os.path.exists(_fichier_etat):
-            return None
-        else:
+        if os.path.exists(_fichier_etat):
             _reseau = self.FMchargerReseauDepuisXML(_fichier_etat)
 
             return _reseau
+        return None
 
     def FMchargerHTMLEtat(self, _numero_etat):
         """
@@ -285,8 +311,11 @@ class Singleton(object):
             Permet de récupérer le chemin vers le fichier HTML représentant l'état voulu
 
         :param _numero_etat: int, le numéro de l'état à récupérer
+
         :return: String, le chemin vers le fichier
         """
+        _log.Linfo("Début ## FileManager.FMchargerHTMLEtat")
+
         _chemin = self.FM_chemin_local + "\\resultats simulation" + "\\etat" + str(_numero_etat) + ".html"
         if not os.path.exists(_chemin):
             return self.FMobtenirCheminHTMLVide()
@@ -298,6 +327,8 @@ class Singleton(object):
 
         :param _garder_etat_initial: boolean, si vrai ne supprime pas les données relatives au premier etat
         """
+        _log.Linfo("Début ## FileManager.FMviderEtats")
+
         _chemin = self.FM_chemin_local + "\\resultats simulation"
 
         if os.path.exists(_chemin):
@@ -322,14 +353,18 @@ class Singleton(object):
 
         :return: int[], ensemble des numéros d'état
         """
+        _log.Linfo("Début ## FileManager.FMlisterEtats")
+
         _numeros_etats = []
         _numero_etat = 0
         _chemin = self.FM_chemin_local + "\\resultats simulation"
         _fichier_etat = _chemin + "\\etat" + str(_numero_etat) + ".xml"
+
         while os.path.exists(_fichier_etat):
             _numeros_etats.append(_numero_etat)
             _numero_etat += 1
             _fichier_etat = _chemin + "\\etat" + str(_numero_etat) + ".xml"
+
         return _numeros_etats
 
     def FMcopierDossier(self, _source, _destination):
@@ -338,9 +373,11 @@ class Singleton(object):
 
         :param _source: String, le chemin du dossier à déplacer
         :param _destination: String, le chemin du dossier vers lequel déplacer le dossier
+
         :return:    bool, vrai si déplacement effectué
                     String, contient le message d'erreur si il y a lieu
         """
+        _log.Linfo("Début ## FileManager.FMcopierDossier")
 
         try:
             shutil.copytree(_source, _destination)
@@ -357,9 +394,11 @@ class Singleton(object):
             Permet d'exporter le résultat de la simulation
 
         :param _destination: String, le chemin vers lequel copier les résultats
+
         :return:    bool, vrai si déplacement effectué
                     String, contient le message d'erreur si il y a lieu
         """
+        _log.Linfo("Début ## FileManager.FMexporterResultat")
 
         if os.path.exists(_destination):
             _destination += "\\copy resultats"
@@ -373,12 +412,14 @@ class Singleton(object):
 
     def FMimporterResultat(self, _source):
         """
-            Permet d'importer un résultat
+            Permet d'importer un résultat, c'est à dire un ensemble d'états
 
         :param _source: String, le chemin où le dossier à importer est situé
+
         :return:    bool, vrai si déplacement effectué
                     String, contient le message d'erreur si il y a lieu
         """
+        _log.Linfo("Début ## FileManager.FMimporterResultat")
 
         if os.path.exists(_source):
             # On copie les résultats déjà présents en local vers un dossier tempon. Cette sauvegarde est utilisé si la
@@ -453,6 +494,8 @@ class Singleton(object):
                 <resultats>
             </statistique>
         """
+        _log.Linfo("Début ## FileManager.FMsauvegarderStatistiques")
+
         from Controleur.Statistiques import Statistiques
         _statistiques = Statistiques()
 
@@ -464,6 +507,7 @@ class Singleton(object):
         _nbretats = SubElement(_racine, "nbretats")
         _nbretats.text = str(_statistiques.S_nombre_etats)
 
+        # Les éléments de chaque état
         _etats = SubElement(_racine, "etats")
         for _etat in range(0, _statistiques.S_nombre_etats):
 
@@ -532,6 +576,9 @@ class Singleton(object):
                 <resultats>
             </statistique>
         """
+        _log.Linfo("Début ## FileManager.FMchargerStatistiques")
+
+        from Controleur.ReseauControleur import ReseauControleur
 
         _chemin = self.FM_chemin_local + "\\resultats simulation\\statistiques.xml"
 
@@ -561,16 +608,17 @@ class Singleton(object):
             # Test si le nombre d'états détectés et celui donné correspondent
             _nbr_etats = int(next(_racine.iter("nbretats")).text)
             if _statistiques.S_nombre_etats != _nbr_etats:
-                from Controleur.ReseauControleur import ReseauControleur
+
                 ReseauControleur.RCmessageInformation("Le nombre d'état en meta et réél ne correspondent pas. "
                                                       "Chargement des informations statistiques échoué")
+                _statistiques.SviderEtats(False)
 
             # Test si le nombre de résultats détecté et celui donné correspondent
             _nbr_resultats = int(next(_racine.iter("nbrresultats")).text)
             if len(_statistiques.S_resultats) != _nbr_resultats:
-                from Controleur.ReseauControleur import ReseauControleur
                 ReseauControleur.RCmessageInformation("Le nombre de résultats en meta et réél ne correspondent pas. "
                                                       "Chargement des informations statistiques échoué")
+                _statistiques.SviderEtats(False)
 
 
 class FileManager(Singleton):

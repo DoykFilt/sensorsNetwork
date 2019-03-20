@@ -1,12 +1,23 @@
+"""@package docstring
+    Auteur : Beaufils Thibaud
+    V 1.0
+    PRD 20/03/2019
+
+    Module Noeuds
+
+    Possède la classe Noeud qui modélise un noeud d'un capteur
+"""
 
 
 class Noeud:
     """
         class Noeud
 
-        Classe qui regroupe les éléments communs entre les capteurs et les puits.
-        Utilisé principalement pour faire le lien entre l'importation/exportation en XML et l'objet graphe networkX
+        Modélise un noeud d'un capteur
 
+        :var self.N_pos : tuple de float (x, y)
+        :var self.N_role : Enum Role
+        :var self.N_route : int le numéro du noeud vers lequel envoyer les données
     """
 
     def __init__(self, _pos, _role, _route):

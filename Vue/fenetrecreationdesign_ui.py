@@ -1,10 +1,11 @@
-# -*- coding: utf-8 -*-
+"""@package docstring
+    Auteur : Beaufils Thibaud
+    V 1.0
+    PRD 20/03/2019
 
-# Form implementation generated from reading ui file 'fenetrecreationdesign.ui'
-#
-# Created by: PyQt5 UI code generator 5.11.3
-#
-# WARNING! All changes made in this file will be lost!
+    Compilation du .ui éponyme issu de QT Creator
+    Created by: PyQt5 UI code generator 5.11.3
+"""
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 

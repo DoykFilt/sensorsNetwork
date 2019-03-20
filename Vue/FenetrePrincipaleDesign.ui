@@ -164,6 +164,16 @@
            </property>
           </widget>
          </item>
+         <item>
+          <widget class="QCheckBox" name="FPD_check_box">
+           <property name="text">
+            <string>Voir l'évolution (plus lent)</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
         </layout>
        </item>
       </layout>

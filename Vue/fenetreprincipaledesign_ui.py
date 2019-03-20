@@ -1,10 +1,11 @@
-# -*- coding: utf-8 -*-
+"""@package docstring
+    Auteur : Beaufils Thibaud
+    V 1.0
+    PRD 20/03/2019
 
-# Form implementation generated from reading ui file 'fenetreprincipaledesign.ui'
-#
-# Created by: PyQt5 UI code generator 5.11.3
-#
-# WARNING! All changes made in this file will be lost!
+    Compilation du .ui éponyme issu de QT Creator
+    Created by: PyQt5 UI code generator 5.11.3
+"""
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -73,6 +74,10 @@ class Ui_MainWindow(object):
         self.FPD_bouton_lancer_simulation.setEnabled(True)
         self.FPD_bouton_lancer_simulation.setObjectName("FPD_bouton_lancer_simulation")
         self.FPD_layout_gauche_bas.addWidget(self.FPD_bouton_lancer_simulation)
+        self.FPD_check_box = QtWidgets.QCheckBox(self.horizontalLayoutWidget)
+        self.FPD_check_box.setChecked(True)
+        self.FPD_check_box.setObjectName("FPD_check_box")
+        self.FPD_layout_gauche_bas.addWidget(self.FPD_check_box)
         self.FPD_layout_gauche.addLayout(self.FPD_layout_gauche_bas)
         self.FPD_layout_principale.addLayout(self.FPD_layout_gauche)
         self.FPD_layout_droit = QtWidgets.QVBoxLayout()
@@ -140,6 +145,7 @@ class Ui_MainWindow(object):
         self.FPD_boutton_saut_avant.setText(_translate("MainWindow", ">>"))
         self.FPD_bouton_generer_reseau.setText(_translate("MainWindow", "Générer un réseau"))
         self.FPD_bouton_lancer_simulation.setText(_translate("MainWindow", "Lancer la simulation"))
+        self.FPD_check_box.setText(_translate("MainWindow", "Voir l\'évolution (plus lent)"))
         self.FPD_aire_informations.setText(_translate("MainWindow", "Informations relatives au résultats de la simulation"))
         self.FPD_menu_reseau.setTitle(_translate("MainWindow", "Réseau"))
         self.FPD_menu_exporter.setTitle(_translate("MainWindow", "Exporter .."))

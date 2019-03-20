@@ -1,7 +1,17 @@
+"""@package docstring
+    Auteur : Beaufils Thibaud
+    V 1.0
+    PRD 20/03/2019
+
+    Module Generateur
+
+    Module contenant la classe utilisée pour la génération de réseaux : Generateur
+
+"""
+
 import datetime
 import math
 import random
-import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 import plotly
 import networkx as nx
@@ -10,7 +20,11 @@ from plotly.utils import numpy
 from Modele.Roles import Roles
 from Modele.Signaux import Signaux
 from Modele.Reseau import Reseau
+from Utilitaires.Log import Log
 from Vue.FenetreCreation import FenetreCreation
+
+
+_log = Log()
 
 
 class Generateur:
@@ -20,6 +34,8 @@ class Generateur:
         Classe qui regroupe les outils utiles pour la génération d'un réseau
         La plupart des méthodes sont déclarées statiques
 
+        :var self.G_connecteur : QtCore.pyqtSignal, Utilisé par Generateur pour notifier le controleur de l'avancement
+        de la création
     """
 
     def __init__(self, _connecteur):
@@ -29,13 +45,16 @@ class Generateur:
         :param _connecteur: pyqtSignal, connecteur qui permet d'informer le controleur de l'avancement de la génération
         """
         super(Generateur, self).__init__()
+
+        _log.Linfo("Init -- Generateur")
+
         self.G_connecteur = _connecteur
 
     def GobtenirConnecteur(self):
         """
         Renvoie le connecteur, permet d'agir à l'extérieur de la classe aux émissions de l'intérieur
 
-        :return Le connecteur pyqtSignal
+        :return pyqtSignal, Le connecteur
         """
         return self.G_connecteur
 
@@ -43,43 +62,44 @@ class Generateur:
         """
         Permet de généré un réseau qui respectent les prérequis de l'application
 
-        :param Objet Parametres
+        :param _params : ParametresCreation, l'ensemble des paramètres saisis par l'utilisateur
 
-        :return Objet Reseau
+        :return Reseau
 
         """
+        _log.Linfo("Début ## Generateur.GcreerReseau")
 
-        self.G_connecteur.emit(Signaux._INITIALISATION_CREATION_GRAPHE, 0,
+        self.G_connecteur.emit(Signaux.INITIALISATION_CREATION_GRAPHE, 0,
                                "Initialisation de la création du réseau..", -1)
 
         _reseau = Reseau()
-        _reseau.R_nbr_noeuds = _params.P_nbr_capteurs
+        _reseau.R_nbr_noeuds = _params.PC_nbr_capteurs
 
         # Génération des positions des capteurs
-        self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 5, "Génération des positions initiales..", -1)
-        _pos = Generateur.GgenererPositions(_params.P_nbr_capteurs,
-                                            _params.P_max_size,
-                                            _params.P_marge,
-                                            _params.P_min_distance)
-        self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 10, "Positions générées", -1)
+        self.G_connecteur.emit(Signaux.AVANCEE_CREATION_GRAPHE, 5, "Génération des positions initiales..", -1)
+        _pos = Generateur.GgenererPositions(_params.PC_nbr_capteurs,
+                                            _params.PC_max_size,
+                                            _params.PC_marge,
+                                            _params.PC_min_distance)
+        self.G_connecteur.emit(Signaux.AVANCEE_CREATION_GRAPHE, 10, "Positions générées", -1)
 
         # Création du graphe
-        self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 10, "Génération de la topologie du réseau..", -1)
-        _graphe = Generateur.GgenerationReseau(_params.P_nbr_capteurs, _pos, _params.P_max_distance)
-        self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 15, "Topologie générée..", -1)
+        self.G_connecteur.emit(Signaux.AVANCEE_CREATION_GRAPHE, 10, "Génération de la topologie du réseau..", -1)
+        _graphe = Generateur.GgenerationReseau(_params.PC_nbr_capteurs, _pos, _params.PC_max_distance)
+        self.G_connecteur.emit(Signaux.AVANCEE_CREATION_GRAPHE, 15, "Topologie générée..", -1)
 
         # Réagencement du graphe en un graphe connexe
-        _reseau.R_graphe = Generateur.Gconnexeur(_graphe, _params.P_max_distance, self.G_connecteur)
+        _reseau.R_graphe = Generateur.Gconnexeur(_graphe, _params.PC_max_distance, self.G_connecteur)
 
         # Assignation des paramètres
-        self.G_connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, 100, "Mise en place des paramètres réseaux..", -1)
+        self.G_connecteur.emit(Signaux.AVANCEE_CREATION_GRAPHE, 100, "Mise en place des paramètres réseaux..", -1)
         _reseau.R_graphe = self.GparametrageReseau(_reseau.R_graphe, _params)
-        _reseau.R_capacite_batterie_max = _params.P_capacitees_batteries
+        _reseau.R_capacite_batterie_max = _params.PC_capacitees_batteries
 
         from Moteur.Simulateur import Simulateur
         Simulateur.SconfigurationTopologique(_reseau)
 
-        self.G_connecteur.emit(Signaux._FIN_CREATION_GRAPHE, 0, "Réseau généré !", 0)
+        self.G_connecteur.emit(Signaux.FIN_CREATION_GRAPHE, 0, "Réseau généré !", 0)
 
         return _reseau
 
@@ -89,20 +109,22 @@ class Generateur:
         Permet de placer les paramètres de rôle et niveau de batterie dans les noeuds.
         Le premier noeud correspond au puit
 
-        :param Objet Parametres, Graphe networkX
+        :param _graphe : Graphe Networkx, le graphe à paramétrer
+        :param _params : ParametresCreation, l'ensemble des paramètres saisis par l'utilisateur
 
-        :return Graphe networkX
+        :return Graphe Networkx
 
         """
+        _log.Linfo("Début ## Generateur.GparametrageReseau")
 
         # Paramètre rôle : Passerelle, Emetteur/Recepteur, Emetteur
-        _roles = {i: Roles._EMETTEUR_RECEPTEUR for i in range(0, _params.P_nbr_capteurs)}
-        _roles[0] = Roles._PUIT
+        _roles = {i: Roles.EMETTEUR_RECEPTEUR for i in range(0, _params.PC_nbr_capteurs)}
+        _roles[0] = Roles.PUIT
         # Niveau initiale de batterie
-        _batterie = {i: _params.P_capacitees_batteries for i in range(0, _params.P_nbr_capteurs)}
+        _batterie = {i: _params.PC_capacitees_batteries for i in range(0, _params.PC_nbr_capteurs)}
         _batterie[0] = -1
         # Si les arcs appartiennent à l'ensemble dominant
-        _dominant = {e: {"dominant": Roles._ARC_NON_DOMINANT} for e in _graphe.edges()}
+        _dominant = {e: {"dominant": Roles.ARC_NON_DOMINANT} for e in _graphe.edges()}
 
         nx.set_node_attributes(_graphe, _roles, "role")
         nx.set_node_attributes(_graphe, _batterie, "batterie")
@@ -117,13 +139,14 @@ class Generateur:
         Elle découpe en aires rectangulaires les surfaces non occupées par les noeuds en prenant en compte la distance
         minimum
 
-        :param _max_size : la taille de la surface carrée à occuper
-        :param _marge : la marge à respecter entre le bord de la surface et les noeuds
-        :param _min_distance : la distance indicative à ne pas dépasser entre deux capteurs
-        :param _nbr_noeuds : le nombre de noeuds à placer
+        :param _max_size : int, la taille de la surface carrée à occuper
+        :param _marge : int, la marge à respecter entre le bord de la surface et les noeuds
+        :param _min_distance : int, la distance indicative à ne pas dépasser entre deux capteurs
+        :param _nbr_noeuds : int, le nombre de noeuds à placer
 
-        :return un dictionnaire des positions des noeuds. exe : {1:(2.5, 3.0), 2:(5.6, 3.1)}
+        :return dict{int:(double, double), dictionnaire des positions des noeuds. exe : {1:(2.5, 3.0), 2:(5.6, 3.1)}
         """
+        _log.Linfo("Début ## Generateur.GgenererPositions")
 
         # L'ensemble d'aires où les noeuds peuvent être placer. Au début contient juste la surface maximale
         _aires_libres = [[(_marge, _marge), (_max_size - _marge, _max_size - _marge)]]
@@ -182,45 +205,48 @@ class Generateur:
             _aires_libres.pop(_n_aire)
             _aires_libres.extend(_temp)
 
-        # self.RafficherPositions(_pos, _max_size, _min_distance)
         return _pos
 
-    @staticmethod
-    def GafficherPositions(_pos, _max_size, _min_distance):
-        """
-        Fonction permet de visualiser sur une fenêtre matplotlib la disposition d'un nuage de point avec un cercle par
-        point qui correspond à la distance minimum que doivent avoir les noeuds entre eux
-        :param _pos : dictionnaire des positions des noeuds. exe : {1:(2.5, 3.0), 2:(5.6, 3.1)}
-        :param _max_size : la taille de la surface carrée à occuper
-        :param _min_distance : la distance indicative à ne pas dépasser entre deux capteurs
-        """
-
-        _list_x, _list_y = [], []
-        _list = []
-        ax = plt.gca(aspect='equal')
-        ax.cla()
-        ax.set_xlim((0, _max_size))
-        ax.set_ylim((0, _max_size))
-        # Affichage de le cercle autour du point, en rouge
-        for _index in _pos:
-            ax.add_artist(
-                plt.Circle((_pos[_index][0], _pos[_index][1]), _min_distance, color=(0.5, 0.2, 0.2), fill=False))
-        # Affichage du point en bleu
-        for _index in _pos:
-            ax.add_artist(plt.Circle((_pos[_index][0], _pos[_index][1]), _min_distance / 100, color=(0, 0, 1)))
-
-        plt.show()
+    # Fonction utilisé lors du développement :
+    # @staticmethod
+    # def GafficherPositions(_pos, _max_size, _min_distance):
+    #     """
+    #     Fonction permet de visualiser sur une fenêtre matplotlib la disposition d'un nuage de point avec un cercle par
+    #     point qui correspond à la distance minimum que doivent avoir les noeuds entre eux
+    #     :param _pos : dictionnaire des positions des noeuds. exe : {1:(2.5, 3.0), 2:(5.6, 3.1)}
+    #     :param _max_size : la taille de la surface carrée à occuper
+    #     :param _min_distance : la distance indicative à ne pas dépasser entre deux capteurs
+    #     """
+    #     _log.Linfo("Début ## Generateur.GafficherPositions")
+    #
+    #     _list_x, _list_y = [], []
+    #     _list = []
+    #     ax = plt.gca(aspect='equal')
+    #     ax.cla()
+    #     ax.set_xlim((0, _max_size))
+    #     ax.set_ylim((0, _max_size))
+    #     # Affichage de le cercle autour du point, en rouge
+    #     for _index in _pos:
+    #         ax.add_artist(
+    #             plt.Circle((_pos[_index][0], _pos[_index][1]), _min_distance, color=(0.5, 0.2, 0.2), fill=False))
+    #     # Affichage du point en bleu
+    #     for _index in _pos:
+    #         ax.add_artist(plt.Circle((_pos[_index][0], _pos[_index][1]), _min_distance / 100, color=(0, 0, 1)))
+    #
+    #     plt.show()
 
     @staticmethod
     def Gconnexeur(_graphe, _max_distance, _connecteur=None):
         """
-        Connecte entre eux les sous-graphes sur multi-graphe passé en paramètre afin d'en créer un unique
+        Connecte entre eux les sous-graphes sur multi-graphe passé en paramètre afin d'en créer un unique. L'algorithme
+        divise le multigraphe en sous-graphes plus les rapproches un à un.
 
-        :param _graphe : le graphe networkX à traiter
-        :param _max_distance : la distance pour que deux capteurs soient connectés
+        :param _graphe : Graphe Networkx, le graphe à traiter
+        :param _max_distance : int, la distance pour que deux capteurs soient connectés
 
-        :return le graphe connexe
+        :return Graphe Networkx, le graphe connexe
         """
+        _log.Linfo("Début ## Generateur.Gconnexeur")
 
         # On récupère d'abord l'ensemble des positions sous la forme d'une dictionnaire
         _pos = {}
@@ -240,7 +266,7 @@ class Generateur:
         _avancement = 15
         _pas = 0
         if _connecteur is not None:
-            _connecteur.emit(Signaux._INFORMATION_CREATION_GRAPHE, 0, "Nombre de sous-graphes : " + str(_count - 1), -1)
+            _connecteur.emit(Signaux.INFORMATION_CREATION_GRAPHE, 0, "Nombre de sous-graphes : " + str(_count - 1), -1)
             _pas = (100 - _avancement) / _count
 
         # variables pour l'estimation du temps restant. On mesure d'abord le temps pour un réagencement puis on le
@@ -257,11 +283,11 @@ class Generateur:
 
             if _connecteur is not None:
                 if _estimation == -1:
-                    _connecteur.emit(Signaux._INFORMATION_CREATION_GRAPHE, 0,
+                    _connecteur.emit(Signaux.INFORMATION_CREATION_GRAPHE, 0,
                                      "Reagencement de la topologie du réseau afin qu'il soit connexe",
                                      (_timer_stop - _timer_start).total_seconds())
                 else:
-                    _connecteur.emit(Signaux._INFORMATION_CREATION_GRAPHE, 0,
+                    _connecteur.emit(Signaux.INFORMATION_CREATION_GRAPHE, 0,
                                      "Reagencement de la topologie du réseau afin qu'il soit connexe",
                                      _estimation.total_seconds())
             # Récupération du plus grand sous graphe
@@ -382,7 +408,7 @@ class Generateur:
                     _estimation = _temps * (_count - 1)
 
                 _avancement += _pas
-                _connecteur.emit(Signaux._AVANCEE_CREATION_GRAPHE, _avancement,
+                _connecteur.emit(Signaux.AVANCEE_CREATION_GRAPHE, _avancement,
                                  "Nombre de sous-graphes : " + str(_count - 1), _estimation.total_seconds())
                 _pas = (100 - _avancement) / _count
 
@@ -400,6 +426,7 @@ class Generateur:
 
         :return Un graphe networkX
         """
+        _log.Linfo("Début ## Generateur.GgenerationReseau")
 
         # Fonction utilisée lors de la génération du graphe, permet de définir si un arc doit être créer entre deux
         # noeuds en fonction de la distance entre eux passée en paramètre
@@ -426,18 +453,19 @@ class Generateur:
         """
         Génère un réseau à partir d'une liste de capteurs et d'arcs
 
-        :param _capteurs : liste d'objets de type Noeud
-        :param _arcs : liste de tuples de type Arc
+        :param _capteurs : Noeud[]
+        :param _arcs : Arc[]
 
-        :return Un graphe networkX
+        :return Graphe Networkx
         """
+        _log.Linfo("Début ## Generateur.GcreerReseauAvecCapteursEtArcs")
 
         _nbr_noeuds_graphe = 0
         _graphe = nx.Graph()
 
         # Capteurs
         for _count in range(0, len(_capteurs)):
-            if _capteurs[_count].N_role == Roles._PUIT:
+            if _capteurs[_count].N_role == Roles.PUIT:
                 _graphe.add_node(_count,
                                  pos=_capteurs[_count].N_pos,
                                  batterie=-1,
@@ -465,15 +493,14 @@ class Generateur:
 
         Algorithme tiré de l'exemple : https://plot.ly/python/network-graphs/
 
+        L'affichage est décomposée. Ainsi les arcs puis les noeuds sont affichés en trois parties : les dominants et
+        les non dominants, ainsi que les déconnectés
 
-        L'affichage est décomposée. Ainsi les arcs sont affichés en deux parties : les dominants et les non dominants,
-        de même que les noeuds qui sont affichés en trois parties : les dominants, les non dominants et les déconnectés
+        :param _reseau : Reseau, le réseau à traiter
 
-
-        :param _reseau : Objet de type Reseau
-
-        :return l'HTML dans une chaîne de caractère
+        :return String, le code HTML
         """
+        _log.Linfo("Début ## Generateur.GgenerationHTML")
 
         # Récupération, pour commencer, l'ensemble des noeuds déconnectés
         from Moteur.Simulateur import Simulateur
@@ -543,7 +570,7 @@ class Generateur:
         _nodes_pos_deconnectes = []
         # Décomposition des arcs en trois parties, les noeuds dominants, les déconnectés et le reste
         for _noeud in _reseau.R_graphe.nodes():
-            if _reseau.R_graphe.node[_noeud]['role'] != Roles._PUIT:
+            if _reseau.R_graphe.node[_noeud]['role'] != Roles.PUIT:
                 if _noeud in _ensemble_deconnecte:
                     _nodes_pos_deconnectes.append([_reseau.R_graphe.node[_noeud]['pos'][0],
                                                    _reseau.R_graphe.node[_noeud]['pos'][1]])
@@ -661,7 +688,7 @@ class Generateur:
             #       n'a plus d'énergie, sa couleur est mise en noir
             #   - le nombre de capteurs adjacent (si c'est le puit)
 
-            if _reseau.R_graphe.node[node]['role'] == Roles._PUIT:
+            if _reseau.R_graphe.node[node]['role'] == Roles.PUIT:
                 _texte_puit = "Passerelle | " + str(len(adjacencies[1])) + " capteurs adjacents"
             else:
                 node_info = "Capteur n°" + str(node) + " | " + \
@@ -684,7 +711,7 @@ class Generateur:
         # Le puit à afficher différemment
         _puits_trace = []
         for _noeud in _reseau.R_graphe.nodes():
-            if _reseau.R_graphe.node[_noeud]['role'] == Roles._PUIT:
+            if _reseau.R_graphe.node[_noeud]['role'] == Roles.PUIT:
                 _puits_trace.append(dict(type='scatter',
                                          x=[_reseau.R_graphe.node[_noeud]['pos'][0]],
                                          y=[_reseau.R_graphe.node[_noeud]['pos'][1]],

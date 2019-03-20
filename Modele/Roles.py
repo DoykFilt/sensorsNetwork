@@ -1,3 +1,14 @@
+"""@package docstring
+    Auteur : Beaufils Thibaud
+    V 1.0
+    PRD 20/03/2019
+
+    Module Signaux
+
+    Possède l'énumération Roles qui recenses les différents rôles que peuvent prendre noeuds et arcs du réseau
+"""
+
+
 from enum import Enum
 
 
@@ -13,6 +24,14 @@ class Roles(Enum):
             - non dominant
 
     """
+    # Rôles des noeuds
+    PUIT = 0
+    EMETTEUR = 1
+    EMETTEUR_RECEPTEUR = 2
+
+    # Rôles des puits
+    ARC_DOMINANT = 3
+    ARC_NON_DOMINANT = 4
 
     def __str__(self):
         """
@@ -21,9 +40,3 @@ class Roles(Enum):
         """
         return str(self.value)
 
-    _PUIT = 0
-    _EMETTEUR = 1
-    _EMETTEUR_RECEPTEUR = 2
-
-    _ARC_DOMINANT = 3
-    _ARC_NON_DOMINANT = 4
