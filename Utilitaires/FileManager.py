@@ -179,7 +179,7 @@ class Singleton(object):
 
             :return le réseau (Reseau) créé
         """
-        _log.Linfo("Début ## FileManager.FMsauvegarderReseauVersXML")
+        _log.Linfo("Début ## FileManager.FMchargerReseauDepuisXML")
 
         # Importation en local pour éviter les conflits
         from Controleur.ReseauControleur import ReseauControleur

@@ -286,9 +286,9 @@ class Singleton:
                     _etat_final = _etat
                     break
 
-        _log.Linfo("Info ## état initial = " + _etat_initial + ", état final = " + _etat_final)
+        _log.Linfo("Info ## état initial = " + str(_etat_initial) + ", état final = " + str(_etat_final))
 
-        return self.S_nombre_etats - 1
+        return _etat_final
 
 
 class Statistiques(Singleton):

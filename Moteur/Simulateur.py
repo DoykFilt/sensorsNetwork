@@ -555,18 +555,24 @@ class Simulateur:
                 _meilleur_energie = 0
                 # Pour tout arcs, si le noeud est relié au puit c'est incontestablement son meilleur routage possible
                 # Sinon on prend le noeud avec le plus de batterie
+                # pour cela on parcourt chaque arc et on ne regarde uniquement ceux qui
+                # -
                 for _arc in _reseau.R_graphe.edges():
                     if (_arc[0] == _noeud and _arc[1] == _puit) or (_arc[1] == _noeud and _arc[0] == _puit):
                         _meilleur_routage = _puit
                         break
                     elif _arc[0] == _noeud \
                             and _meilleur_energie <= _reseau.R_graphe.nodes[_arc[1]]['batterie'] \
-                            and _arc[1] in _reseau.R_ensemble_dominant.nodes:
+                            and _arc[1] in _reseau.R_ensemble_dominant.nodes\
+                            and (_reseau.R_graphe.nodes[_arc[1]]['route'] == -1 or
+                            _reseau.R_graphe.nodes[_reseau.R_graphe.nodes[_arc[1]]['route']]['route'] != _arc[1]):
                         _meilleur_energie = _reseau.R_graphe.nodes[_arc[1]]['batterie']
                         _meilleur_routage = _arc[1]
                     elif _arc[1] == _noeud \
                             and _meilleur_energie <= _reseau.R_graphe.nodes[_arc[0]]['batterie'] \
-                            and _arc[0] in _reseau.R_ensemble_dominant.nodes:
+                            and _arc[0] in _reseau.R_ensemble_dominant.nodes\
+                            and (_reseau.R_graphe.nodes[_arc[0]]['route'] == -1 or
+                            _reseau.R_graphe.nodes[_reseau.R_graphe.nodes[_arc[0]]['route']]['route'] != _arc[0]):
                         _meilleur_energie = _reseau.R_graphe.nodes[_arc[0]]['batterie']
                         _meilleur_routage = _arc[0]
                 _reseau.R_graphe.nodes[_noeud]['route'] = _meilleur_routage
@@ -667,7 +673,7 @@ class Simulateur:
         return _reseau
 
     @staticmethod
-    def SfinDeVieAtteinte(_reseau_initial, _intervalle_roulement):
+    def SfinDeVieAtteinte(_reseau, _intervalle_roulement):
         """
             Permet de déterminer si le réseau a atteint sa fin de vie. Un ratio du nombre de capteur relié au puit est
             utilisé.
@@ -684,14 +690,9 @@ class Simulateur:
         _fin_de_vie_atteinte = False
         _puit = 0
 
-        # Dans le cas d'un intervalle de changement de rôle nul (donc dans le premier cycle de la simulation) on ne
-        # change rien. Sinon on récupère une copie du réseau sans les noeuds vidéo puis on le configure topologiquement
-        if _intervalle_roulement != 0:
-            _reseau, _noeuds_vides = Simulateur.SreseauSansCapteursVides(_reseau_initial)
-            _reseau = Simulateur.SconfigurationTopologique(_reseau)
-            _noeuds_deconnectes.extend(_noeuds_vides)
-        else:
-            _reseau = _reseau_initial
+        # On récupère une copie du réseau sans les noeuds vides puis on le configure topologiquement
+        _reseau_sans_capteurs_vides, _noeuds_vides = Simulateur.SreseauSansCapteursVides(_reseau)
+        _reseau_sans_capteurs_vides = Simulateur.SconfigurationTopologique(_reseau_sans_capteurs_vides)
 
         # Récupération du puit
         for _noeud in _reseau.R_graphe.nodes():
@@ -699,12 +700,16 @@ class Simulateur:
                 _puit = _noeud
                 break
 
-        # Pour tout les noeuds, on teste si le noeud est relié et dans le cas du premier cycle on descend de routage en
-        # routage vers le puit
+        # Pour tout les noeuds, on teste si le noeud est relié sinon dans le cas du premier cycle on descend de routage
+        # en routage vers le puit
         for _noeud in _reseau.R_graphe.nodes():
-            if not has_path(_reseau.R_graphe, _noeud, _puit):
+            # Si on détecte une anomalie : le routage d'un noeud est lui-même, on déconnecte ce noeud
+            if _noeud != _puit and _reseau.R_graphe.node[_noeud]['route'] == _noeud:
                 _noeuds_deconnectes.append(_noeud)
-
+            # Si il n'y a pas de chemin possible vers le puit on déconnecte le noeud
+            elif _noeud in _noeuds_vides or not has_path(_reseau_sans_capteurs_vides.R_graphe, _noeud, _puit):
+                _noeuds_deconnectes.append(_noeud)
+            # Au premier tour on test si la route n'est pas brisée
             elif _intervalle_roulement == 0:
                 # La récurisivité est utilisée pour descendre de routage en routage jusqu'au puit
                 _, _noeuds_deconnectes = Simulateur.Sparcourt(_noeud, _reseau, _noeuds_deconnectes)
@@ -727,7 +732,6 @@ class Simulateur:
             :return:    bool, vrai si le noeud est déconnecté, faux sinon
                         _noeuds_deconnectes (int[]), l'ensemble des noeuds déjà parcourus et déconnecté
         """
-        _log.Linfo("Début ## Simulateur.Sparcourt")
 
         # Si le noeud rencontré est le puit on stop la récursivité : le noeud initial n'est pas déconnecté
         if _reseau.R_graphe.nodes()[_noeud]["role"] == Roles.PUIT:

@@ -12,7 +12,6 @@
     - ThreadSimulation : Thread qui permet de lancer la simulation du réseau en parrallèle
     - ReseauControleur : Le contrôleur de l'application
 """
-import textwrap
 
 from PyQt5.QtWidgets import QMessageBox, QFileDialog
 from PyQt5 import QtCore
@@ -188,6 +187,7 @@ class ReseauControleur (QFileDialog):
         self.RC_file_manager = FileManager()
         from Controleur.Statistiques import Statistiques
         self.RC_statistiques = Statistiques()
+        self.RC_file_manager.FMchargerStatistiques()
 
         self.RC_fen_principale.FPobtenirConnecteur().connect(self.RCactionSignalFenetrePrincipale)
         self.RC_fen_creation.FCobtenirConnecteur().connect(self.RCactionSignalFenetreCreation)

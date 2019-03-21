@@ -34,7 +34,7 @@ def main():
     sys.excepthook = exception_hook
     _app = QApplication(sys.argv)
 
-    _log.Linfo("Démarrage de l'application")
+    _log.Linfo("###### Démarrage de l'application ######")
 
     # Les deux fenêtres à afficher et le controleur qui fait le lien entre les deux
     _fenetre_principale = FenetrePrincipale()
@@ -47,10 +47,8 @@ def main():
 
     """Retourne un exit status (0 pour succes, tout le reste pour l'echec)"""
     try:
-        _log.Linfo("Démarrage de l'application")
         sys.exit(_app.exec_())
     except:
-        _log.Linfo("Démarrage de l'application")
         sys.exit(0)
 
 
