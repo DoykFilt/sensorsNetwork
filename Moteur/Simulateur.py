@@ -19,8 +19,8 @@ from networkx.algorithms.shortest_paths.generic import shortest_path, has_path
 
 from Modele.Roles import Roles
 from Modele.Signaux import Signaux
-from Utilitaires.FileManager import FileManager
-from Utilitaires.Log import Log
+from Controleur.FileManager import FileManager
+from Controleur.Log import Log
 
 _log = Log()
 
@@ -68,12 +68,12 @@ class Simulateur:
     # Consommation énergétique d'une récolte de données
     S_unite_consommation_recolte = 0.005
     # Pourcentage de réseaux connectés au puit à partir duquel on considère que la fin de vie du réseau est atteinte
-    S_fin_de_vie = 0.8
+    S_fin_de_vie = 0.1
     # Variable utilisée pour stocker la durée de vie du réseau
     S_duree_de_vie = 0
     # Ratio qui détermine à partir de quand arrêter la simulation. Utilisé dans __SmaximumAtteint, si l'augmentation
     # de durée de vie par rapport à la valeur précédente ne dépasse pas (S_performances x 100)% on arrête la simulation
-    S_performance = 0.005
+    S_performance = 0.10
 
     def __init__(self, _connecteur):
         """
@@ -101,6 +101,14 @@ class Simulateur:
         """
 
         _log.Linfo("Début ## Simulateur.SlancerSimulation")
+
+        from Modele.Reseau import Reseau
+        if type(_reseau) is not Reseau:
+            _log.Lerror("Valeur Argument errone _reseau")
+            raise Exception("Valeur Argument errone _reseau")
+        if type(_show_html) is not bool:
+            _log.Lerror("Valeur Argument errone _show_html")
+            raise Exception("Valeur Argument errone _show_html")
 
         from Controleur.Statistiques import Statistiques
         _statistiques = Statistiques()
@@ -165,7 +173,7 @@ class Simulateur:
 
                 _fin_de_vie_atteinte, _capteurs_deconnectes = self.SfinDeVieAtteinte(_reseau_simulation,
                                                                                      self.S_intervalle_roulement)
-                _ratio = (len(_capteurs_deconnectes) / _reseau.R_nbr_noeuds)
+                _ratio = len(_capteurs_deconnectes) / _reseau.R_nbr_noeuds - (1 - self.S_fin_de_vie)
                 self.S_connecteur.emit(Signaux.PROGRESSION_SIMULATION, dict({"avancee": int(_ratio * 100),
                                                                              "text": _text_progression}))
 
@@ -190,8 +198,6 @@ class Simulateur:
 
         # Fin while, cad fin de la simulation, le maximum a été trouvé
 
-        FileManager.FMsauvegarderStatistiques()
-
         # Si les étapes intermédiaires n'ont pas été enregistrées sous format html, en enregistre quand même le dernier
         # état afin d'avoir le premier et le dernier état d'affiché
         if not _show_html:
@@ -199,6 +205,8 @@ class Simulateur:
             _total += 1
             _file_manager.FMenregistrerEtat(_reseau_simulation, True)
             self.S_connecteur.emit(Signaux.NOUVEL_ETAT, dict({"etat": _etat, "total": _total}))
+
+        FileManager.FMsauvegarderStatistiques()
 
         # Informations sur la durée de la simulation
         _end = time.time()
@@ -290,6 +298,11 @@ class Simulateur:
         """
         _log.Linfo("Début ## Simulateur.SconfigurationTopologique")
 
+        from Modele.Reseau import Reseau
+        if type(_reseau) is not Reseau:
+            _log.Lerror("Valeur Argument errone _reseau")
+            raise Exception("Valeur Argument errone _reseau")
+
         # Détermination des rôles des capteurs en prenant en compte l'ensemble dominant
         _ensemble_dominant = Simulateur.SdeterminationEnsembleDominant(_reseau)
         _reseau.R_ensemble_dominant = _ensemble_dominant
@@ -321,10 +334,15 @@ class Simulateur:
             Permet de déterminer l'ensemble dominant d'un réseau. Prend en compte le niveau restant de la batterie des
             capteurs
 
-            :param _reseau: Reseau, le réseau à configurer
+            :param _reseau_initial: Reseau, le réseau à configurer
             :return: Graph Networkx, l'ensemble dominant
         """
         _log.Linfo("Début ## Simulateur.SdeterminationEnsembleDominant")
+
+        from Modele.Reseau import Reseau
+        if type(_reseau_initial) is not Reseau:
+            _log.Lerror("Valeur Argument errone _reseau")
+            raise Exception("Valeur Argument errone _reseau")
 
         # Avant tout on créé un copie du réseau duquel on supprime l'ensemble des noeuds qui n'ont plus de batterie
         # ainsi que les arcs qui y sont reliés
@@ -485,6 +503,11 @@ class Simulateur:
         """
         _log.Linfo("Début ## Simulateur.SactualisationPoids")
 
+        from Modele.Reseau import Reseau
+        if type(_reseau) is not Reseau:
+            _log.Lerror("Valeur Argument errone _reseau")
+            raise Exception("Valeur Argument errone _reseau")
+
         _poids = {}
 
         for _noeud in _reseau.R_graphe:
@@ -510,6 +533,10 @@ class Simulateur:
         """
         _log.Linfo("Début ## Simulateur.SmigrerPoidsDansArcs")
 
+        if type(_graphe) is not nx.Graph:
+            _log.Lerror("Valeur Argument errone _graphe")
+            raise Exception("Valeur Argument errone _graphe")
+
         _datas = {}
         for _edge in _graphe.edges():
             _poids_arc = _graphe.node[_edge[0]]['poids_dominant'] + _graphe.node[_edge[1]]['poids_dominant']
@@ -527,6 +554,14 @@ class Simulateur:
             :return: Reseau, le réseau configuré
         """
         _log.Linfo("Début ## Simulateur.SdeterminationRoutage")
+
+        from Modele.Reseau import Reseau
+        if type(_reseau) is not Reseau:
+            _log.Lerror("Valeur Argument errone _reseau")
+            raise Exception("Valeur Argument errone _reseau")
+        if type(_ensemble_dominant) is not nx.Graph:
+            _log.Lerror("Valeur Argument errone _ensemble_dominant")
+            raise Exception("Valeur Argument errone _ensemble_dominant")
 
         # On commence par réinitialiser le routage
         for _noeud in _ensemble_dominant.nodes():
@@ -590,6 +625,17 @@ class Simulateur:
         """
         _log.Linfo("Début ## Simulateur.SrouteRecursive")
         # TODO : Ajoiter l'exclusion des arcs déjà visités pour l'optimisation de l'algorithme
+
+        if type(_noeud) is not int or _noeud < 0:
+            _log.Lerror("Valeur Argument errone _noeud")
+            raise Exception("Valeur Argument errone _noeud")
+        from Modele.Reseau import Reseau
+        if type(_reseau) is not Reseau:
+            _log.Lerror("Valeur Argument errone _reseau")
+            raise Exception("Valeur Argument errone _reseau")
+        if type(_ensemble_dominant) is not nx.Graph:
+            _log.Lerror("Valeur Argument errone _ensemble_dominant")
+            raise Exception("Valeur Argument errone _ensemble_dominant")
 
         for _arc in _ensemble_dominant.edges():
             if _arc[0] == _noeud and _reseau.R_graphe.nodes[_arc[1]]['route'] == -1:
@@ -678,12 +724,20 @@ class Simulateur:
             Permet de déterminer si le réseau a atteint sa fin de vie. Un ratio du nombre de capteur relié au puit est
             utilisé.
 
-        :param _reseau_initial: Reseau, le réseau à traiter
-        :param _intervalle_roulement : double, l'intervalle de temps entre chaque changement de rôle des capteurs
+        :param _reseau: Reseau, le réseau à traiter
+        :param _intervalle_roulement : float, l'intervalle de temps entre chaque changement de rôle des capteurs
         :return:    boolean, vrai si la fin de vie du réseau a été atteinte
                     int[], liste des noeuds déconnectés
         """
         _log.Linfo("Début ## Simulateur.SfinDeVieAtteinte")
+
+        from Modele.Reseau import Reseau
+        if type(_reseau) is not Reseau:
+            _log.Lerror("Valeur Argument errone _reseau")
+            raise Exception("Valeur Argument errone _reseau")
+        if type(_intervalle_roulement) is not float and _intervalle_roulement < -1:
+            _log.Lerror("Valeur Argument errone _intervalle_roulement")
+            raise Exception("Valeur Argument errone _intervalle_roulement" + str(_intervalle_roulement))
 
         # Pour chaque noeud, suivre la chaine de routage qui le lie au puit. Si la chaîne est brisée décompter ce noeud
         _noeuds_deconnectes = []
@@ -733,6 +787,17 @@ class Simulateur:
                         _noeuds_deconnectes (int[]), l'ensemble des noeuds déjà parcourus et déconnecté
         """
 
+        if type(_noeud) is not int or _noeud < 0:
+            _log.Lerror("Valeur Argument errone _noeud")
+            raise Exception("Valeur Argument errone _noeud")
+        from Modele.Reseau import Reseau
+        if type(_reseau) is not Reseau:
+            _log.Lerror("Valeur Argument errone _reseau")
+            raise Exception("Valeur Argument errone _reseau")
+        if type(_noeuds_deconnectes) is not list:
+            _log.Lerror("Valeur Argument errone _noeuds_deconnectes")
+            raise Exception("Valeur Argument errone _noeuds_deconnectes")
+
         # Si le noeud rencontré est le puit on stop la récursivité : le noeud initial n'est pas déconnecté
         if _reseau.R_graphe.nodes()[_noeud]["role"] == Roles.PUIT:
             return False, _noeuds_deconnectes
@@ -770,6 +835,11 @@ class Simulateur:
                         int[], l'ensemble des noeuds sans énergie
         """
         _log.Linfo("Début ## Simulateur.SreseauSansCapteursVides")
+
+        from Modele.Reseau import Reseau
+        if type(_reseau) is not Reseau:
+            _log.Lerror("Valeur Argument errone _reseau")
+            raise Exception("Valeur Argument errone _reseau")
 
         _copie = copy.deepcopy(_reseau)
         _noeuds_vides = []
